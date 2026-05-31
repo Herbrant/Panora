@@ -24,6 +24,9 @@ enum LastfmError: Error, LocalizedError {
 /// Minimal Last.fm API client: auth flow + now-playing + scrobble.
 actor LastfmClient {
     private let urlSession = URLSession.shared
+    private var artistArtworkTasks: [String: Task<URL?, Never>] = [:]
+    private var albumArtworkTasks: [String: Task<URL?, Never>] = [:]
+    private var trackArtworkTasks: [String: Task<URL?, Never>] = [:]
 
     // MARK: Public API
 
@@ -100,15 +103,23 @@ actor LastfmClient {
               let arr = container["artist"] as? [[String: Any]] else {
             throw LastfmError.malformedResponse
         }
-        return arr.compactMap { obj in
-            guard let name = obj["name"] as? String else { return nil }
-            return LastfmTopArtist(
+        var artists: [LastfmTopArtist] = []
+        for obj in arr {
+            guard let name = obj["name"] as? String else { continue }
+            let imageURL: URL?
+            if let existingImageURL = Self.imageURL(obj["image"]) {
+                imageURL = existingImageURL
+            } else {
+                imageURL = await artistArtworkURL(artist: name)
+            }
+            artists.append(LastfmTopArtist(
                 name: name,
                 playcount: Self.int(obj["playcount"]),
-                imageURL: Self.imageURL(obj["image"]),
+                imageURL: imageURL,
                 url: (obj["url"] as? String).flatMap(URL.init(string:))
-            )
+            ))
         }
+        return artists
     }
 
     func topTracks(_ user: String, period: StatsPeriod, limit: Int = 20) async throws -> [LastfmTopTrack] {
@@ -121,17 +132,25 @@ actor LastfmClient {
               let arr = container["track"] as? [[String: Any]] else {
             throw LastfmError.malformedResponse
         }
-        return arr.compactMap { obj in
-            guard let name = obj["name"] as? String else { return nil }
+        var tracks: [LastfmTopTrack] = []
+        for obj in arr {
+            guard let name = obj["name"] as? String else { continue }
             let artist = (obj["artist"] as? [String: Any])?["name"] as? String ?? ""
-            return LastfmTopTrack(
+            let imageURL: URL?
+            if let existingImageURL = Self.imageURL(obj["image"]) {
+                imageURL = existingImageURL
+            } else {
+                imageURL = await trackArtworkURL(artist: artist, track: name)
+            }
+            tracks.append(LastfmTopTrack(
                 name: name,
                 artist: artist,
                 playcount: Self.int(obj["playcount"]),
-                imageURL: Self.imageURL(obj["image"]),
+                imageURL: imageURL,
                 url: (obj["url"] as? String).flatMap(URL.init(string:))
-            )
+            ))
         }
+        return tracks
     }
 
     func recentTracks(_ user: String, limit: Int = 20) async throws -> [LastfmRecentTrack] {
@@ -151,8 +170,9 @@ actor LastfmClient {
         } else {
             arr = []
         }
-        return arr.compactMap { obj in
-            guard let name = obj["name"] as? String else { return nil }
+        var tracks: [LastfmRecentTrack] = []
+        for obj in arr {
+            guard let name = obj["name"] as? String else { continue }
             let artist = (obj["artist"] as? [String: Any])?["#text"] as? String ?? ""
             let album = ((obj["album"] as? [String: Any])?["#text"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             let nowPlaying = ((obj["@attr"] as? [String: Any])?["nowplaying"] as? String) == "true"
@@ -160,15 +180,22 @@ actor LastfmClient {
             if let d = obj["date"] as? [String: Any], let uts = d["uts"] as? String, let secs = TimeInterval(uts) {
                 date = Date(timeIntervalSince1970: secs)
             }
-            return LastfmRecentTrack(
+            let imageURL: URL?
+            if let existingImageURL = Self.imageURL(obj["image"]) {
+                imageURL = existingImageURL
+            } else {
+                imageURL = await trackArtworkURL(artist: artist, track: name)
+            }
+            tracks.append(LastfmRecentTrack(
                 name: name,
                 artist: artist,
                 album: album,
                 date: date,
                 nowPlaying: nowPlaying,
-                imageURL: Self.imageURL(obj["image"])
-            )
+                imageURL: imageURL
+            ))
         }
+        return tracks
     }
 
     // MARK: Parsing helpers
@@ -195,6 +222,116 @@ actor LastfmClient {
     }
 
     // MARK: Helpers
+
+    private func artistArtworkURL(artist: String) async -> URL? {
+        let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedArtist.isEmpty else { return nil }
+
+        let key = trimmedArtist.lowercased()
+        if let task = artistArtworkTasks[key] {
+            return await task.value
+        }
+
+        let task = Task { [self] in
+            do {
+                return try await fetchArtistArtworkURL(artist: trimmedArtist)
+            } catch {
+                return nil
+            }
+        }
+        artistArtworkTasks[key] = task
+        return await task.value
+    }
+
+    private func fetchArtistArtworkURL(artist: String) async throws -> URL? {
+        let data = try await get([
+            "method": "artist.getInfo",
+            "artist": artist,
+            "autocorrect": "1"
+        ], requiresSignature: false)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let obj = root["artist"] as? [String: Any] else {
+            throw LastfmError.malformedResponse
+        }
+        return Self.imageURL(obj["image"])
+    }
+
+    private func albumArtworkURL(artist: String, album: String) async -> URL? {
+        let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedAlbum = album.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedArtist.isEmpty, !trimmedAlbum.isEmpty else { return nil }
+
+        let key = "\(trimmedArtist.lowercased())|\(trimmedAlbum.lowercased())"
+        if let task = albumArtworkTasks[key] {
+            return await task.value
+        }
+
+        let task = Task { [self] in
+            do {
+                return try await fetchAlbumArtworkURL(artist: trimmedArtist, album: trimmedAlbum)
+            } catch {
+                return nil
+            }
+        }
+        albumArtworkTasks[key] = task
+        return await task.value
+    }
+
+    private func fetchAlbumArtworkURL(artist: String, album: String) async throws -> URL? {
+        let data = try await get([
+            "method": "album.getInfo",
+            "artist": artist,
+            "album": album,
+            "autocorrect": "1"
+        ], requiresSignature: false)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let obj = root["album"] as? [String: Any] else {
+            throw LastfmError.malformedResponse
+        }
+        return Self.imageURL(obj["image"])
+    }
+
+    private func trackArtworkURL(artist: String, track: String) async -> URL? {
+        let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTrack = track.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedArtist.isEmpty, !trimmedTrack.isEmpty else { return nil }
+
+        let key = "\(trimmedArtist.lowercased())|\(trimmedTrack.lowercased())"
+        if let task = trackArtworkTasks[key] {
+            return await task.value
+        }
+
+        let task = Task { [self] in
+            do {
+                return try await fetchTrackArtworkURL(artist: trimmedArtist, track: trimmedTrack)
+            } catch {
+                return nil
+            }
+        }
+        trackArtworkTasks[key] = task
+        return await task.value
+    }
+
+    private func fetchTrackArtworkURL(artist: String, track: String) async throws -> URL? {
+        let data = try await get([
+            "method": "track.getInfo",
+            "artist": artist,
+            "track": track,
+            "autocorrect": "1"
+        ], requiresSignature: false)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let obj = root["track"] as? [String: Any] else {
+            throw LastfmError.malformedResponse
+        }
+        let album = obj["album"] as? [String: Any]
+        if let imageURL = Self.imageURL(album?["image"]) ?? Self.imageURL(obj["image"]) {
+            return imageURL
+        }
+        if let albumTitle = album?["title"] as? String {
+            return await albumArtworkURL(artist: artist, album: albumTitle)
+        }
+        return nil
+    }
 
     private func trackParams(method: String, track: ScrobbleTrack, sessionKey: String) -> [String: String] {
         var params: [String: String] = [
