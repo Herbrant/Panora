@@ -239,11 +239,6 @@ struct StatisticsView: View {
             symbol: "calendar",
             color: .secondary
         )
-        profileBadge(
-            period.title,
-            symbol: "slider.horizontal.3",
-            color: .secondary
-        )
     }
 
     @ViewBuilder
@@ -282,9 +277,15 @@ struct StatisticsView: View {
 
     private var periodMenu: some View {
         Menu {
-            Picker("Period", selection: $period) {
-                ForEach(StatsPeriod.allCases) { p in
-                    Text(p.title).tag(p)
+            ForEach(StatsPeriod.allCases) { p in
+                Button {
+                    period = p
+                } label: {
+                    if p == period {
+                        Label(p.title, systemImage: "checkmark")
+                    } else {
+                        Text(p.title)
+                    }
                 }
             }
         } label: {

@@ -40,6 +40,7 @@ struct MainWindowView: View {
         NavigationSplitView {
             List(Section.allCases, selection: $selection) { section in
                 Label(section.title, systemImage: section.icon)
+                    .panoraArrowCursor()
                     .tag(section)
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
@@ -53,4 +54,3 @@ struct MainWindowView: View {
         .frame(minWidth: 640, minHeight: 420)
     }
 }
-

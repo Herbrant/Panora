@@ -10,6 +10,7 @@ struct AppSourceSetupView: View {
             Image(systemName: "music.note.list")
                 .font(.system(size: 56))
                 .foregroundStyle(Color.accentColor)
+                .panoraArrowCursor()
 
             VStack(spacing: 8) {
                 Text("Which apps do you want to scrobble?")

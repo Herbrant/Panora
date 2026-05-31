@@ -34,6 +34,7 @@ struct MenuBarView: View {
                 Image(systemName: "music.note")
                     .font(.title2)
                     .foregroundStyle(.secondary)
+                    .panoraArrowCursor()
                 Text("Nothing playing")
                     .foregroundStyle(.secondary)
             }
@@ -49,11 +50,13 @@ struct MenuBarView: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 52, height: 52)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .panoraArrowCursor()
         } else {
             RoundedRectangle(cornerRadius: 8)
                 .fill(.quaternary)
                 .frame(width: 52, height: 52)
                 .overlay(Image(systemName: "music.note").foregroundStyle(.secondary))
+                .panoraArrowCursor()
         }
     }
 

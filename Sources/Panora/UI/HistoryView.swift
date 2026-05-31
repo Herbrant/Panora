@@ -2,24 +2,60 @@ import SwiftData
 import SwiftUI
 
 struct HistoryView: View {
+    @Environment(AppState.self) private var appState
     @Query(sort: \ScrobbleEntry.timestamp, order: .reverse) private var entries: [ScrobbleEntry]
 
     var body: some View {
         Group {
-            if entries.isEmpty {
+            if entries.isEmpty && appState.current == nil {
                 ContentUnavailableView(
                     "No scrobbles",
                     systemImage: "music.note.list",
                     description: Text("Played tracks will appear here once scrobbled.")
                 )
             } else {
-                List(entries) { entry in
-                    ScrobbleRow(entry: entry)
+                List {
+                    if let current = appState.current {
+                        CurrentScrobbleRow(track: current)
+                    }
+
+                    ForEach(entries) { entry in
+                        ScrobbleRow(entry: entry)
+                    }
                 }
                 .listStyle(.inset)
             }
         }
         .navigationTitle("History")
+    }
+}
+
+private struct CurrentScrobbleRow: View {
+    let track: TrackPlayback
+    @State private var isAnimating = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(track.title).fontWeight(.medium)
+                Text(track.artist).foregroundStyle(.secondary).font(.subheadline)
+            }
+            Spacer()
+            Text("Scrobbling now")
+                .foregroundStyle(.blue)
+                .font(.caption)
+                .fontWeight(.semibold)
+            Image(systemName: "waveform")
+                .foregroundStyle(.blue)
+                .symbolEffect(.variableColor.iterative.reversing, options: .repeating, value: isAnimating)
+                .scaleEffect(isAnimating ? 1.12 : 0.96)
+                .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isAnimating)
+                .help("Scrobbling now")
+                .accessibilityLabel("Scrobbling now")
+        }
+        .padding(.vertical, 4)
+        .onAppear { isAnimating = true }
+        .onDisappear { isAnimating = false }
     }
 }
 
