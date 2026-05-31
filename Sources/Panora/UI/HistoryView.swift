@@ -33,7 +33,7 @@ private struct ScrobbleRow: View {
                 Text(entry.artist).foregroundStyle(.secondary).font(.subheadline)
             }
             Spacer()
-            Text(Date(timeIntervalSince1970: TimeInterval(entry.timestamp)), style: .relative)
+            Text(Date(timeIntervalSince1970: TimeInterval(entry.timestamp)), format: .dateTime.year().month(.abbreviated).day().hour().minute())
                 .foregroundStyle(.tertiary)
                 .font(.caption)
             StatusBadge(status: entry.status)
