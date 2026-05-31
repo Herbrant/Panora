@@ -10,13 +10,13 @@ enum LastfmError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            return "Last.fm API key/secret non configurati."
+            return "Last.fm API key/secret not configured."
         case .http(let status):
-            return "Errore di rete (HTTP \(status))."
+            return "Network error (HTTP \(status))."
         case .api(let code, let message):
-            return "Errore Last.fm \(code): \(message)"
+            return "Last.fm error \(code): \(message)"
         case .malformedResponse:
-            return "Risposta Last.fm non valida."
+            return "Invalid Last.fm response."
         }
     }
 }
@@ -129,7 +129,7 @@ actor LastfmClient {
     private func validate(_ data: Data, _ response: URLResponse) throws {
         if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let code = obj["error"] as? Int {
-            let message = obj["message"] as? String ?? "Errore sconosciuto"
+            let message = obj["message"] as? String ?? "Unknown error"
             throw LastfmError.api(code: code, message: message)
         }
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {

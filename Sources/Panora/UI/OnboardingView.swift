@@ -12,9 +12,9 @@ struct OnboardingView: View {
                 .foregroundStyle(Color.accentColor)
 
             VStack(spacing: 8) {
-                Text("Open Scrobbler")
+                Text("Panora")
                     .font(.largeTitle.weight(.semibold))
-                Text("Accedi al tuo account Last.fm per iniziare a scrobblare.")
+                Text("Sign in to your Last.fm account to start scrobbling.")
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -23,18 +23,18 @@ struct OnboardingView: View {
                 VStack(spacing: 12) {
                     HStack(spacing: 8) {
                         ProgressView().scaleEffect(0.8)
-                        Text("In attesa di autorizzazione nel browser...")
+                        Text("Waiting for browser authorization...")
                             .foregroundStyle(.secondary)
                             .font(.callout)
                     }
-                    Button("Ho completato l'accesso") {
+                    Button("I've completed sign-in") {
                         appState.completeLogin()
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                 }
             } else {
-                Button("Accedi con Last.fm") {
+                Button("Sign in with Last.fm") {
                     appState.beginLogin()
                 }
                 .buttonStyle(.borderedProminent)
@@ -50,7 +50,7 @@ struct OnboardingView: View {
             }
 
             if !appState.isConfigured {
-                Text("API key/secret di Last.fm non configurati. Imposta LASTFM_API_KEY e LASTFM_API_SECRET.")
+                Text("Last.fm API key/secret not configured. Set LASTFM_API_KEY and LASTFM_API_SECRET.")
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .multilineTextAlignment(.center)

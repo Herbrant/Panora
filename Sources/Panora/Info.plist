@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.openscrobbler.app</string>
+    <string>com.panora.app</string>
     <key>CFBundleName</key>
-    <string>OpenScrobbler</string>
+    <string>Panora</string>
     <key>CFBundleDisplayName</key>
-    <string>Open Scrobbler</string>
+    <string>Panora</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
@@ -18,10 +18,10 @@
     <array>
         <dict>
             <key>CFBundleURLName</key>
-            <string>com.openscrobbler.auth</string>
+            <string>com.panora.auth</string>
             <key>CFBundleURLSchemes</key>
             <array>
-                <string>openscrobbler</string>
+                <string>panora</string>
             </array>
         </dict>
     </array>

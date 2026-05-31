@@ -33,7 +33,7 @@ struct MenuBarView: View {
                 Image(systemName: "music.note")
                     .font(.title2)
                     .foregroundStyle(.secondary)
-                Text("Niente in riproduzione")
+                Text("Nothing playing")
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,13 +59,13 @@ struct MenuBarView: View {
     @ViewBuilder
     private func statusLine(_ track: TrackPlayback) -> some View {
         if appState.isCurrentScrobbled {
-            Label("Scrobblato", systemImage: "checkmark.circle.fill")
+            Label("Scrobbled", systemImage: "checkmark.circle.fill")
                 .font(.caption).foregroundStyle(.green)
         } else if track.isPlaying {
-            Label("In riproduzione", systemImage: "dot.radiowaves.left.and.right")
+            Label("Now playing", systemImage: "dot.radiowaves.left.and.right")
                 .font(.caption).foregroundStyle(.secondary)
         } else {
-            Label("In pausa", systemImage: "pause.circle")
+            Label("Paused", systemImage: "pause.circle")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -76,21 +76,21 @@ struct MenuBarView: View {
                 Label(session.username, systemImage: "person.crop.circle")
                     .font(.caption).foregroundStyle(.secondary)
             } else {
-                Label("Non connesso a Last.fm", systemImage: "exclamationmark.circle")
+                Label("Not connected to Last.fm", systemImage: "exclamationmark.circle")
                     .font(.caption).foregroundStyle(.orange)
             }
             HStack {
-                Button("Apri Open Scrobbler") {
+                Button("Open Panora") {
                     openWindow(id: "main")
                     NSApp.activate(ignoringOtherApps: true)
                     DispatchQueue.main.async {
                         NSApp.windows
-                            .first { $0.title == "Open Scrobbler" }?
+                            .first { $0.title == "Panora" }?
                             .makeKeyAndOrderFront(nil)
                     }
                 }
                 Spacer()
-                Button("Esci") { NSApplication.shared.terminate(nil) }
+                Button("Quit") { NSApplication.shared.terminate(nil) }
             }
         }
     }

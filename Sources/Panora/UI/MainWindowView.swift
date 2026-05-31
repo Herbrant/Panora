@@ -9,8 +9,8 @@ struct MainWindowView: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .history: return "Cronologia"
-            case .settings: return "Impostazioni"
+            case .history: return "History"
+            case .settings: return "Settings"
             }
         }
         var icon: String {

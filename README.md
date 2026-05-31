@@ -1,92 +1,89 @@
 # Open Scrobbler
 
-Scrobbler nativo per macOS (SwiftUI) che rileva la musica in riproduzione e la
-invia a **Last.fm**. App menu bar + finestra, con cronologia e coda offline.
+Native macOS (SwiftUI) scrobbler that detects playing music and submits it to **Last.fm**.
+Menu bar app + window, with history and offline queue.
 
-## Come funziona il rilevamento
+## How detection works
 
-Da macOS 15.4 Apple ha bloccato l'API privata `MediaRemote` ai soli processi
-Apple. Open Scrobbler usa
-[mediaremote-adapter](https://github.com/ejbills/mediaremote-adapter), che
-aggira la restrizione eseguendo il framework tramite `/usr/bin/perl`
-(bundle id `com.apple.perl5`, ancora autorizzato) **senza disabilitare SIP**.
-Questo permette di rilevare qualsiasi player (Apple Music, Spotify, browser…).
+Since macOS 15.4, Apple has restricted the private `MediaRemote` API to Apple processes only.
+Open Scrobbler uses [mediaremote-adapter](https://github.com/ejbills/mediaremote-adapter), which
+bypasses the restriction by running the framework through `/usr/bin/perl`
+(bundle id `com.apple.perl5`, still authorized) **without disabling SIP**.
+This allows detecting any player (Apple Music, Spotify, browsers…).
 
-Conseguenza: l'app dipende da un framework privato, quindi **non è
-sandboxabile né distribuibile su Mac App Store**. La distribuzione avviene
-tramite `.app` firmata e notarizzata (Developer ID).
+Consequence: the app depends on a private framework, so it is **not sandboxable and cannot be
+distributed on the Mac App Store**. Distribution is via a signed and notarized `.app` (Developer ID).
 
-## Requisiti
+## Requirements
 
 - macOS 14+
-- Xcode 26+ (per eseguire la GUI e produrre il bundle `.app`)
-- Un account API Last.fm
+- Xcode 26+ (to run the GUI and produce the `.app` bundle)
+- A Last.fm API account
 
-## 1. Chiavi API Last.fm
+## 1. Last.fm API keys
 
-Crea un'app su <https://www.last.fm/api/account/create>. Otterrai una
-**API key** e uno **shared secret**. Forniscili in uno dei due modi:
+Create an app at <https://www.last.fm/api/account/create>. You will get an
+**API key** and a **shared secret**. Provide them in one of two ways:
 
-- variabili d'ambiente `LASTFM_API_KEY` e `LASTFM_API_SECRET` (impostate nello
-  scheme di Xcode: *Edit Scheme → Run → Arguments → Environment Variables*), oppure
-- modificando i valori di default in `Sources/OpenScrobbler/Scrobbling/LastfmConfig.swift`.
+- Environment variables `LASTFM_API_KEY` and `LASTFM_API_SECRET` (set in the
+  Xcode scheme: *Edit Scheme → Run → Arguments → Environment Variables*), or
+- By editing the default values in `Sources/Panora/Scrobbling/LastfmConfig.swift`.
 
-## 2. Eseguire
+## 2. Running
 
-Build da riga di comando (verifica di compilazione):
+Build from the command line (compilation check):
 
 ```sh
 swift build
 ```
 
-Per eseguire la GUI apri il pacchetto in Xcode e premi Run:
+To run the GUI, open the package in Xcode and press Run:
 
 ```sh
 open Package.swift
 ```
 
-> L'esecuzione corretta di `MenuBarExtra`/finestra e di SwiftData richiede un
-> bundle `.app`: usa Xcode (lo schema `OpenScrobbler`). Il binario prodotto da
-> `swift build` serve solo a verificare la compilazione.
+> Correct operation of `MenuBarExtra`/window and SwiftData requires an `.app` bundle:
+> use Xcode (scheme `OpenScrobbler`). The binary produced by `swift build` is only for
+> verifying compilation.
 
-## 3. Accesso a Last.fm
+## 3. Last.fm sign-in
 
-In *Impostazioni* nella finestra principale:
-1. **Apri Last.fm e autorizza** — apre il browser sulla pagina di
-   autorizzazione dell'app.
-2. Dopo aver autorizzato, **Ho autorizzato** — completa il login e salva la
-   session key nel **Keychain**.
+In *Settings* in the main window:
+1. **Sign in with Last.fm** — opens the browser on the app authorization page.
+2. After authorizing, **I've completed sign-in** — finishes the login and saves the
+   session key in the **Keychain**.
 
-## Regole di scrobble
+## Scrobble rules
 
-- `track.updateNowPlaying` a ogni cambio brano.
-- `track.scrobble` quando il brano supera il **50% della durata o 4 minuti**
-  (il minore), solo per brani > 30s. Un timer locale guida la soglia.
-- Se l'invio fallisce (offline), lo scrobble resta in coda e viene ritentato
-  (fino a 5 tentativi) al riavvio o allo scrobble successivo.
+- `track.updateNowPlaying` on every track change.
+- `track.scrobble` when the track passes **50% of its duration or 4 minutes**
+  (whichever is less), only for tracks > 30s. A local timer drives the threshold.
+- If submission fails (offline), the scrobble stays queued and is retried
+  (up to 5 attempts) on restart or the next scrobble.
 
-## Struttura
+## Structure
 
 ```
-Sources/OpenScrobbler/
-  OpenScrobblerApp.swift          entry point (MenuBarExtra + Window)
-  AppState.swift                  coordinatore (auth, wiring)
+Sources/Panora/
+  PanoraApp.swift                   entry point (MenuBarExtra + Window)
+  AppState.swift                    coordinator (auth, wiring)
   NowPlaying/
-    TrackPlayback.swift           snapshot del brano corrente
-    NowPlayingMonitor.swift       wrapper dell'adapter
+    TrackPlayback.swift             current track snapshot
+    NowPlayingMonitor.swift         adapter wrapper
   Scrobbling/
-    LastfmConfig.swift            chiavi API
-    LastfmClient.swift            API Last.fm + firma api_sig
-    KeychainStore.swift           session key nel Keychain
-    ScrobbleEngine.swift          regole now-playing/scrobble + coda
+    LastfmConfig.swift              API keys
+    LastfmClient.swift              Last.fm API + api_sig signing
+    KeychainStore.swift             session key in Keychain
+    ScrobbleEngine.swift            now-playing/scrobble rules + queue
   Persistence/
-    ScrobbleEntry.swift           modello SwiftData
-    ScrobbleStore.swift           accesso/coda SwiftData
+    ScrobbleEntry.swift             SwiftData model
+    ScrobbleStore.swift             SwiftData access/queue
   UI/
     MainWindowView.swift, HistoryView.swift, SettingsView.swift, MenuBarView.swift
 ```
 
-## Fuori scope (v1)
+## Out of scope (v1)
 
-Editing metadati/blocco, statistiche e grafici, altri servizi
-(ListenBrainz, Libre.fm, CSV/JSONL), Discord Rich Presence, notarizzazione/DMG.
+Metadata editing/blocking, stats and charts, other services
+(ListenBrainz, Libre.fm, CSV/JSONL), Discord Rich Presence, notarization/DMG.

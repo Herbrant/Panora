@@ -8,7 +8,7 @@ struct LastfmSession: Equatable {
 
 /// Persists the Last.fm session key in the macOS Keychain.
 enum KeychainStore {
-    private static let service = "com.openscrobbler.lastfm"
+    private static let service = "com.panora.lastfm"
     private static let account = "session"
 
     static func save(_ session: LastfmSession) {

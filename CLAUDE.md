@@ -74,7 +74,7 @@ NowPlayingMonitor → AppState → ScrobbleEngine → LastfmClient
   keep the adapter's non-`Sendable` callbacks and the `@MainActor` UI layer
   compiling without strict-concurrency friction. Keep new concurrency-sensitive
   code main-actor-isolated rather than fighting Swift 6 mode.
-- User-facing strings are in **Italian**; keep new UI/error text consistent.
+- User-facing strings are in **English**; keep new UI/error text consistent.
 - The Keychain stores `username\nsessionKey` as a single generic-password item
   (`KeychainStore`).
 

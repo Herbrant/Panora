@@ -7,30 +7,30 @@ struct SettingsView: View {
         Form {
             Section("Account Last.fm") {
                 if let session = appState.session {
-                    LabeledContent("Connesso come", value: session.username)
-                    Button("Disconnetti", role: .destructive) { appState.logout() }
+                    LabeledContent("Signed in as", value: session.username)
+                    Button("Sign out", role: .destructive) { appState.logout() }
                 } else if !appState.isConfigured {
-                    Label("API key/secret di Last.fm non configurati.", systemImage: "exclamationmark.triangle")
+                    Label("Last.fm API key/secret not configured.", systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
-                    Text("Imposta LASTFM_API_KEY e LASTFM_API_SECRET (vedi README).")
+                    Text("Set LASTFM_API_KEY and LASTFM_API_SECRET (see README).")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("Accedi per inviare gli scrobble al tuo account.")
+                    Text("Sign in to send scrobbles to your account.")
                         .foregroundStyle(.secondary)
                     if appState.isAuthorizing {
                         HStack(spacing: 8) {
                             ProgressView().scaleEffect(0.7)
-                            Text("In attesa di autorizzazione nel browser...")
+                            Text("Waiting for browser authorization...")
                                 .foregroundStyle(.secondary)
                                 .font(.callout)
                         }
-                        Button("Ho completato l'accesso") {
+                        Button("I've completed sign-in") {
                             appState.completeLogin()
                         }
                         .buttonStyle(.borderedProminent)
                     } else {
-                        Button("Accedi con Last.fm") { appState.beginLogin() }
+                        Button("Sign in with Last.fm") { appState.beginLogin() }
                             .buttonStyle(.borderedProminent)
                     }
                     if let error = appState.authError {
@@ -39,15 +39,15 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Sorgenti") {
-                Toggle("Modalità selettiva", isOn: Binding(
+            Section("Sources") {
+                Toggle("Selective mode", isOn: Binding(
                     get: { appState.selectiveScrobblingEnabled },
                     set: { appState.setSelectiveScrobbling($0) }
                 ))
 
                 if appState.selectiveScrobblingEnabled {
                     if appState.knownApps.isEmpty {
-                        Text("Nessuna app rilevata ancora. Riproduci musica per vedere le sorgenti disponibili.")
+                        Text("No apps detected yet. Play music to see available sources.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
@@ -62,6 +62,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("Impostazioni")
+        .navigationTitle("Settings")
     }
 }

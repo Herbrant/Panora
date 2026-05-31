@@ -145,7 +145,7 @@ final class AppState {
             do {
                 let token = try await client.fetchRequestToken()
                 pendingToken = token
-                NSWorkspace.shared.open(client.authorizationURL(token: token, callbackURL: "openscrobbler://auth/callback"))
+                NSWorkspace.shared.open(client.authorizationURL(token: token, callbackURL: "panora://auth/callback"))
             } catch {
                 authError = error.localizedDescription
                 isAuthorizing = false
@@ -155,7 +155,7 @@ final class AppState {
 
     func completeLogin() {
         guard let token = pendingToken else {
-            authError = "Avvia prima l'accesso."
+            authError = "Start sign-in first."
             return
         }
         Task {
@@ -181,7 +181,7 @@ final class AppState {
     }
 
     func handleCallback(url: URL) {
-        guard url.scheme == "openscrobbler", url.host == "auth" else { return }
+        guard url.scheme == "panora", url.host == "auth" else { return }
         completeLogin()
     }
 }

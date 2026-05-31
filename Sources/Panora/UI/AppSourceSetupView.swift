@@ -12,26 +12,26 @@ struct AppSourceSetupView: View {
                 .foregroundStyle(Color.accentColor)
 
             VStack(spacing: 8) {
-                Text("Quali app vuoi scrobblare?")
+                Text("Which apps do you want to scrobble?")
                     .font(.largeTitle.weight(.semibold))
-                Text("Puoi cambiare questa impostazione in qualsiasi momento dalle Impostazioni.")
+                Text("You can change this setting anytime from Settings.")
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
             VStack(spacing: 12) {
-                Button("Tutte le app") {
+                Button("All apps") {
                     appState.completeSourceSetup(selective: false)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
-                Button("Scegli le app") {
+                Button("Choose apps") {
                     appState.completeSourceSetup(selective: true)
                 }
                 .controlSize(.large)
 
-                Text("Se scegli la modalità selettiva, potrai configurare le app nelle Impostazioni > Sorgenti man mano che le usi.")
+                Text("In selective mode, you can configure apps under Settings > Sources as you use them.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

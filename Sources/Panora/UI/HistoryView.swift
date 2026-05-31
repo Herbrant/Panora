@@ -8,9 +8,9 @@ struct HistoryView: View {
         Group {
             if entries.isEmpty {
                 ContentUnavailableView(
-                    "Nessuno scrobble",
+                    "No scrobbles",
                     systemImage: "music.note.list",
-                    description: Text("I brani riprodotti appariranno qui una volta scrobblati.")
+                    description: Text("Played tracks will appear here once scrobbled.")
                 )
             } else {
                 List(entries) { entry in
@@ -19,7 +19,7 @@ struct HistoryView: View {
                 .listStyle(.inset)
             }
         }
-        .navigationTitle("Cronologia")
+        .navigationTitle("History")
     }
 }
 
@@ -71,9 +71,9 @@ private struct StatusBadge: View {
 
     private var label: String {
         switch status {
-        case .sent: return "Inviato"
-        case .pending: return "In coda"
-        case .failed: return "Errore"
+        case .sent: return "Sent"
+        case .pending: return "Queued"
+        case .failed: return "Error"
         }
     }
 }

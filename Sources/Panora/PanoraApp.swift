@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 @main
-struct OpenScrobblerApp: App {
+struct PanoraApp: App {
     private let container: ModelContainer
     @State private var appState: AppState
 
@@ -13,7 +13,7 @@ struct OpenScrobblerApp: App {
     }
 
     var body: some Scene {
-        Window("Open Scrobbler", id: "main") {
+        Window("Panora", id: "main") {
             MainWindowView()
                 .environment(appState)
                 .task { appState.start() }
