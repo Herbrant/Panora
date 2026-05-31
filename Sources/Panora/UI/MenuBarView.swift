@@ -84,9 +84,12 @@ struct MenuBarView: View {
                     openWindow(id: "main")
                     NSApp.activate(ignoringOtherApps: true)
                     DispatchQueue.main.async {
-                        NSApp.windows
-                            .first { $0.title == "Panora" }?
-                            .makeKeyAndOrderFront(nil)
+                        if let window = NSApp.windows.first(where: {
+                            $0.identifier?.rawValue.hasPrefix("main") == true || $0.title == "Panora"
+                        }) {
+                            window.makeKeyAndOrderFront(nil)
+                            window.orderFrontRegardless()
+                        }
                     }
                 }
                 Spacer()
