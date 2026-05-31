@@ -1,0 +1,20 @@
+# Xcode
+DerivedData/
+*.xcworkspace
+*.xcuserdata
+*.xcodeproj/xcuserdata
+*.xcodeproj/project.xcworkspace
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+
+# SwiftPM state (regenerate lockfile from scratch with `swift package resolve`)
+Package.resolved
+
+# macOS
+.DS_Store
+*~
+*.swp
+*.lock
