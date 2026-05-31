@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MainWindowView: View {
+    @Environment(AppState.self) private var appState
+
     private enum Section: String, CaseIterable, Identifiable {
         case history
         case settings
@@ -22,6 +24,16 @@ struct MainWindowView: View {
     @State private var selection: Section? = .history
 
     var body: some View {
+        if appState.session == nil {
+            OnboardingView()
+        } else if !appState.hasCompletedSourceSetup {
+            AppSourceSetupView()
+        } else {
+            splitView
+        }
+    }
+
+    private var splitView: some View {
         NavigationSplitView {
             List(Section.allCases, selection: $selection) { section in
                 Label(section.title, systemImage: section.icon)
@@ -37,3 +49,4 @@ struct MainWindowView: View {
         .frame(minWidth: 640, minHeight: 420)
     }
 }
+

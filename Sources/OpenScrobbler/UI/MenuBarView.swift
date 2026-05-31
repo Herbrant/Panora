@@ -80,7 +80,15 @@ struct MenuBarView: View {
                     .font(.caption).foregroundStyle(.orange)
             }
             HStack {
-                Button("Apri Open Scrobbler") { openWindow(id: "main") }
+                Button("Apri Open Scrobbler") {
+                    openWindow(id: "main")
+                    NSApp.activate(ignoringOtherApps: true)
+                    DispatchQueue.main.async {
+                        NSApp.windows
+                            .first { $0.title == "Open Scrobbler" }?
+                            .makeKeyAndOrderFront(nil)
+                    }
+                }
                 Spacer()
                 Button("Esci") { NSApplication.shared.terminate(nil) }
             }

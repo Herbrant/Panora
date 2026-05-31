@@ -17,6 +17,7 @@ struct OpenScrobblerApp: App {
             MainWindowView()
                 .environment(appState)
                 .task { appState.start() }
+                .onOpenURL { appState.handleCallback(url: $0) }
         }
         .modelContainer(container)
         .windowResizability(.contentSize)
@@ -24,6 +25,7 @@ struct OpenScrobblerApp: App {
         MenuBarExtra {
             MenuBarView()
                 .environment(appState)
+                .onOpenURL { appState.handleCallback(url: $0) }
         } label: {
             Image(systemName: "music.note")
         }

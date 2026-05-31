@@ -18,3 +18,5 @@ Package.resolved
 *~
 *.swp
 *.lock
+# Added by code-review-graph
+.code-review-graph/

@@ -18,10 +18,19 @@ struct SettingsView: View {
                 } else {
                     Text("Accedi per inviare gli scrobble al tuo account.")
                         .foregroundStyle(.secondary)
-                    HStack {
-                        Button("1. Apri Last.fm e autorizza") { appState.beginLogin() }
-                            .disabled(appState.isAuthorizing)
-                        Button("2. Ho autorizzato") { appState.completeLogin() }
+                    if appState.isAuthorizing {
+                        HStack(spacing: 8) {
+                            ProgressView().scaleEffect(0.7)
+                            Text("In attesa di autorizzazione nel browser...")
+                                .foregroundStyle(.secondary)
+                                .font(.callout)
+                        }
+                        Button("Ho completato l'accesso") {
+                            appState.completeLogin()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        Button("Accedi con Last.fm") { appState.beginLogin() }
                             .buttonStyle(.borderedProminent)
                     }
                     if let error = appState.authError {
@@ -30,15 +39,25 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Rilevamento") {
-                if let track = appState.current {
-                    LabeledContent("In riproduzione", value: "\(track.title) — \(track.artist)")
-                    if let app = track.appName {
-                        LabeledContent("Sorgente", value: app)
+            Section("Sorgenti") {
+                Toggle("Modalità selettiva", isOn: Binding(
+                    get: { appState.selectiveScrobblingEnabled },
+                    set: { appState.setSelectiveScrobbling($0) }
+                ))
+
+                if appState.selectiveScrobblingEnabled {
+                    if appState.knownApps.isEmpty {
+                        Text("Nessuna app rilevata ancora. Riproduci musica per vedere le sorgenti disponibili.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(appState.knownApps.sorted(by: { $0.value < $1.value }), id: \.key) { id, name in
+                            Toggle(name, isOn: Binding(
+                                get: { appState.allowedApps.contains(id) },
+                                set: { appState.toggleApp(id, enabled: $0) }
+                            ))
+                        }
                     }
-                } else {
-                    Text("Nessun brano rilevato al momento.")
-                        .foregroundStyle(.secondary)
                 }
             }
         }

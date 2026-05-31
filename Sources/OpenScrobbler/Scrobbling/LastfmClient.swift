@@ -36,8 +36,12 @@ actor LastfmClient {
         return token
     }
 
-    nonisolated func authorizationURL(token: String) -> URL {
-        URL(string: "\(LastfmConfig.authRoot)?api_key=\(LastfmConfig.apiKey)&token=\(token)")!
+    nonisolated func authorizationURL(token: String, callbackURL: String? = nil) -> URL {
+        var str = "\(LastfmConfig.authRoot)?api_key=\(LastfmConfig.apiKey)&token=\(token)"
+        if let cb = callbackURL?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            str += "&cb=\(cb)"
+        }
+        return URL(string: str)!
     }
 
     func fetchSession(token: String) async throws -> LastfmSession {
