@@ -13,6 +13,7 @@ struct HistoryView: View {
                     systemImage: "music.note.list",
                     description: Text("Played tracks will appear here once scrobbled.")
                 )
+                .accessibilityIdentifier("panora.history.empty")
             } else {
                 List {
                     if let current = appState.current {
@@ -24,9 +25,11 @@ struct HistoryView: View {
                     }
                 }
                 .listStyle(.inset)
+                .accessibilityIdentifier("panora.history.list")
             }
         }
         .navigationTitle("History")
+        .accessibilityIdentifier("panora.history")
     }
 }
 

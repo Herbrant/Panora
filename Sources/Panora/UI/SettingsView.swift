@@ -63,5 +63,6 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
+        .accessibilityIdentifier("panora.settings")
     }
 }

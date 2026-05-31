@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build + Test
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build
+
+      - name: Test with coverage
+        run: swift test --enable-code-coverage
+
+      - name: Generate coverage report (text)
+        run: |
+          BIN=$(find .build -path "*/PanoraPackageTests.xctest/Contents/MacOS/PanoraPackageTests" -type f 2>/dev/null | head -1)
+          PROF=$(find .build -name "default.profdata" -path "*/codecov/*" 2>/dev/null | head -1)
+          if [ -n "$BIN" ] && [ -n "$PROF" ]; then
+            xcrun llvm-cov report \
+              --instr-profile "$PROF" \
+              --ignore-filename-regex='(.build|Tests|Package\.swift)' \
+              "$BIN" > coverage.txt
+            cat coverage.txt
+          else
+            echo "Binary: $BIN"
+            echo "Profdata: $PROF"
+            echo "Coverage data not found."
+          fi
+
+      - name: Generate LCOV report
+        run: |
+          BIN=$(find .build -path "*/PanoraPackageTests.xctest/Contents/MacOS/PanoraPackageTests" -type f 2>/dev/null | head -1)
+          PROF=$(find .build -name "default.profdata" -path "*/codecov/*" 2>/dev/null | head -1)
+          if [ -n "$BIN" ] && [ -n "$PROF" ]; then
+            xcrun llvm-cov export \
+              --instr-profile "$PROF" \
+              --ignore-filename-regex='(.build|Tests|Package\.swift)' \
+              --format=lcov \
+              "$BIN" > coverage.lcov
+          fi
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.lcov
+          fail_ci_if_error: false
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.txt
+            coverage.lcov
+          retention-days: 14
+
+  ui-test:
+    name: UI Tests
+    runs-on: macos-15
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build
+
+      - name: Run UI tests
+        run: |
+          xcodebuild test \
+            -workspace .swiftpm/xcode/package.xcworkspace \
+            -scheme Panora \
+            -destination 'platform=macOS' \
+            -skip-testing PanoraTests \
+            -resultBundlePath uitest-results \
+            PANORA_RUN_UI_TESTS=1 2>&1
+        timeout-minutes: 15

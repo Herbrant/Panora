@@ -42,5 +42,6 @@ struct AppSourceSetupView: View {
         }
         .padding(40)
         .frame(width: 480, height: 380)
+        .accessibilityIdentifier("panora.sourceSetup.content")
     }
 }

@@ -21,9 +21,10 @@ struct StatisticsView: View {
             }
         }
         .navigationTitle("Statistics")
+        .accessibilityIdentifier("panora.statistics")
         .task(id: taskKey) {
             guard let username else { return }
-            await model.load(username: username, period: period)
+            await model.load(username: username, period: period, client: appState.client)
         }
     }
 

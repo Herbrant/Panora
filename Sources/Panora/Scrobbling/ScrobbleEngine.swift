@@ -12,19 +12,31 @@ import Observation
 final class ScrobbleEngine {
     private(set) var lastScrobbledIdentity: String?
 
-    private let client: LastfmClient
-    private let store: ScrobbleStore
+    private let client: LastfmServing
+    private let store: ScrobbleQueueStoring
     private let sessionProvider: () -> LastfmSession?
+    private let dateProvider: () -> Date
+    private let sleep: (Double) async -> Void
 
     private var currentIdentity: String?
     private var currentStartUnix: Int = 0
     private var scrobbled = false
     private var scrobbleTask: Task<Void, Never>?
 
-    init(client: LastfmClient, store: ScrobbleStore, sessionProvider: @escaping () -> LastfmSession?) {
+    init(
+        client: LastfmServing,
+        store: ScrobbleQueueStoring,
+        sessionProvider: @escaping () -> LastfmSession?,
+        dateProvider: @escaping () -> Date = Date.init,
+        sleep: @escaping (Double) async -> Void = { seconds in
+            try? await Task.sleep(for: .seconds(seconds))
+        }
+    ) {
         self.client = client
         self.store = store
         self.sessionProvider = sessionProvider
+        self.dateProvider = dateProvider
+        self.sleep = sleep
     }
 
     func handle(_ track: TrackPlayback?) {
@@ -69,7 +81,7 @@ final class ScrobbleEngine {
     private func startNewTrack(_ track: TrackPlayback) {
         cancelScrobbleTimer()
         currentIdentity = track.identity
-        currentStartUnix = Int(Date().timeIntervalSince1970 - track.elapsedSeconds)
+        currentStartUnix = Int(dateProvider().timeIntervalSince1970 - track.elapsedSeconds)
         scrobbled = false
 
         guard track.isPlaying else { return }
@@ -83,7 +95,7 @@ final class ScrobbleEngine {
         let identity = track.identity
 
         scrobbleTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(remaining))
+            await self?.sleep(remaining)
             guard !Task.isCancelled else { return }
             guard let self else { return }
             if self.currentIdentity == identity && !self.scrobbled {

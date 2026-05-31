@@ -1,9 +1,17 @@
 import Foundation
 import SwiftData
 
+@MainActor
+protocol ScrobbleQueueStoring: AnyObject {
+    func insert(_ entry: ScrobbleEntry)
+    func markSent(_ entry: ScrobbleEntry)
+    func markFailed(_ entry: ScrobbleEntry, error: String)
+    func sendable() -> [ScrobbleEntry]
+}
+
 /// Thin wrapper around the SwiftData context for scrobble persistence + queue.
 @MainActor
-final class ScrobbleStore {
+final class ScrobbleStore: ScrobbleQueueStoring {
     private let context: ModelContext
     private let maxAttempts = 5
 

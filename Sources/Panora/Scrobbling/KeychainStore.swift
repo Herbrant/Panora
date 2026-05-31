@@ -6,6 +6,26 @@ struct LastfmSession: Equatable {
     var sessionKey: String
 }
 
+protocol LastfmSessionStoring {
+    func load() -> LastfmSession?
+    func save(_ session: LastfmSession)
+    func clear()
+}
+
+struct KeychainSessionStore: LastfmSessionStoring {
+    func load() -> LastfmSession? {
+        KeychainStore.load()
+    }
+
+    func save(_ session: LastfmSession) {
+        KeychainStore.save(session)
+    }
+
+    func clear() {
+        KeychainStore.clear()
+    }
+}
+
 /// Persists the Last.fm session key in the macOS Keychain.
 enum KeychainStore {
     private static let service = "com.panora.lastfm"

@@ -30,6 +30,29 @@ struct TrackPlayback {
     }
 
     /// Builds a snapshot from the adapter payload, requiring at least artist + title.
+    init(
+        artist: String,
+        title: String,
+        album: String? = nil,
+        durationSeconds: Double? = nil,
+        elapsedSeconds: Double = 0,
+        isPlaying: Bool = false,
+        bundleIdentifier: String? = nil,
+        appName: String? = nil,
+        artwork: NSImage? = nil
+    ) {
+        self.artist = artist
+        self.title = title
+        self.album = album
+        self.durationSeconds = durationSeconds
+        self.elapsedSeconds = elapsedSeconds
+        self.isPlaying = isPlaying
+        self.bundleIdentifier = bundleIdentifier
+        self.appName = appName
+        self.artwork = artwork
+    }
+
+    /// Builds a snapshot from the adapter payload, requiring at least artist + title.
     init?(payload: TrackInfo.Payload) {
         guard let artist = payload.artist, !artist.isEmpty,
               let title = payload.title, !title.isEmpty else { return nil }

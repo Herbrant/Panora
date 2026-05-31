@@ -11,9 +11,7 @@ final class StatisticsViewModel {
     private(set) var isLoading = false
     private(set) var errorMessage: String?
 
-    private let client = LastfmClient()
-
-    func load(username: String, period: StatsPeriod) async {
+    func load(username: String, period: StatsPeriod, client: LastfmServing = LastfmClient()) async {
         isLoading = true
         errorMessage = nil
         do {

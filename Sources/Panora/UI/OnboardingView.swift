@@ -61,5 +61,6 @@ struct OnboardingView: View {
         }
         .padding(40)
         .frame(width: 480, height: 340)
+        .accessibilityIdentifier("panora.onboarding.content")
     }
 }

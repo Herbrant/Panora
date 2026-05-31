@@ -13,7 +13,11 @@ final class AppState {
 
     let monitor: NowPlayingMonitor
     private let engine: ScrobbleEngine
-    private let client = LastfmClient()
+    let client: LastfmServing
+    private let sessionStore: LastfmSessionStoring
+    private let defaults: UserDefaults
+    private let startsMonitor: Bool
+    private let opensAuthorization: Bool
     private var pendingToken: String?
     private var started = false
 
@@ -24,18 +28,32 @@ final class AppState {
     private(set) var knownApps: [String: String] = [:]
 
     var current: TrackPlayback? { filter(monitor.current) }
-    var isConfigured: Bool { LastfmConfig.isConfigured }
+    var isConfigured: Bool { client.isConfigured }
 
     var isCurrentScrobbled: Bool {
         guard let id = monitor.current?.identity else { return false }
         return engine.lastScrobbledIdentity == id
     }
 
-    init(context: ModelContext) {
+    init(
+        context: ModelContext,
+        client: LastfmServing = LastfmClient(),
+        sessionStore: LastfmSessionStoring = KeychainSessionStore(),
+        defaults: UserDefaults = .standard,
+        startsMonitor: Bool = true,
+        opensAuthorization: Bool = true,
+        initialSession: LastfmSession? = nil,
+        sourceSetupCompleted: Bool? = nil
+    ) {
         let store = ScrobbleStore(context: context)
         let monitor = NowPlayingMonitor()
+        self.client = client
         self.monitor = monitor
-        self.session = KeychainStore.load()
+        self.sessionStore = sessionStore
+        self.defaults = defaults
+        self.startsMonitor = startsMonitor
+        self.opensAuthorization = opensAuthorization
+        self.session = initialSession ?? sessionStore.load()
 
         var sessionRef: () -> LastfmSession? = { nil }
         let engine = ScrobbleEngine(client: client, store: store, sessionProvider: { sessionRef() })
@@ -43,6 +61,9 @@ final class AppState {
         sessionRef = { [weak self] in self?.session }
 
         loadPreferences()
+        if let sourceSetupCompleted {
+            hasCompletedSourceSetup = sourceSetupCompleted
+        }
 
         monitor.onUpdate = { [weak self, weak engine] track in
             guard let self else { engine?.handle(track); return }
@@ -54,7 +75,9 @@ final class AppState {
     func start() {
         guard !started else { return }
         started = true
-        monitor.start()
+        if startsMonitor {
+            monitor.start()
+        }
         Task { await engine.flushQueue() }
     }
 
@@ -111,7 +134,6 @@ final class AppState {
     }
 
     private func loadPreferences() {
-        let defaults = UserDefaults.standard
         selectiveScrobblingEnabled = defaults.bool(forKey: Keys.selectiveEnabled)
         hasCompletedSourceSetup = defaults.bool(forKey: Keys.sourceSetupDone)
         if let data = defaults.data(forKey: Keys.allowedApps),
@@ -125,7 +147,6 @@ final class AppState {
     }
 
     private func savePreferences() {
-        let defaults = UserDefaults.standard
         defaults.set(selectiveScrobblingEnabled, forKey: Keys.selectiveEnabled)
         defaults.set(hasCompletedSourceSetup, forKey: Keys.sourceSetupDone)
         if let data = try? JSONEncoder().encode(Array(allowedApps)) {
@@ -145,7 +166,9 @@ final class AppState {
             do {
                 let token = try await client.fetchRequestToken()
                 pendingToken = token
-                NSWorkspace.shared.open(client.authorizationURL(token: token, callbackURL: "panora://auth/callback"))
+                if opensAuthorization {
+                    NSWorkspace.shared.open(client.authorizationURL(token: token, callbackURL: "panora://auth/callback"))
+                }
             } catch {
                 authError = error.localizedDescription
                 isAuthorizing = false
@@ -162,7 +185,7 @@ final class AppState {
             defer { isAuthorizing = false }
             do {
                 let session = try await client.fetchSession(token: token)
-                KeychainStore.save(session)
+                sessionStore.save(session)
                 self.session = session
                 pendingToken = nil
                 await engine.flushQueue()
@@ -173,7 +196,7 @@ final class AppState {
     }
 
     func logout() {
-        KeychainStore.clear()
+        sessionStore.clear()
         session = nil
         pendingToken = nil
         authError = nil

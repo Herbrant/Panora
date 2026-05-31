@@ -1,6 +1,44 @@
 import CryptoKit
 import Foundation
 
+protocol LastfmServing: AnyObject {
+    var isConfigured: Bool { get }
+
+    func fetchRequestToken() async throws -> String
+    func authorizationURL(token: String, callbackURL: String?) -> URL
+    func fetchSession(token: String) async throws -> LastfmSession
+    func updateNowPlaying(track: ScrobbleTrack, sessionKey: String) async throws
+    func scrobble(track: ScrobbleTrack, timestamp: Int, sessionKey: String) async throws
+    func userInfo(_ user: String) async throws -> LastfmUserInfo
+    func topArtists(_ user: String, period: StatsPeriod, limit: Int) async throws -> [LastfmTopArtist]
+    func topTracks(_ user: String, period: StatsPeriod, limit: Int) async throws -> [LastfmTopTrack]
+    func recentTracks(_ user: String, limit: Int) async throws -> [LastfmRecentTrack]
+}
+
+extension LastfmServing {
+    func authorizationURL(token: String) -> URL {
+        authorizationURL(token: token, callbackURL: nil)
+    }
+
+    func topArtists(_ user: String, period: StatsPeriod) async throws -> [LastfmTopArtist] {
+        try await topArtists(user, period: period, limit: 20)
+    }
+
+    func topTracks(_ user: String, period: StatsPeriod) async throws -> [LastfmTopTrack] {
+        try await topTracks(user, period: period, limit: 20)
+    }
+
+    func recentTracks(_ user: String) async throws -> [LastfmRecentTrack] {
+        try await recentTracks(user, limit: 20)
+    }
+}
+
+protocol LastfmHTTPClient {
+    func data(for request: URLRequest) async throws -> (Data, URLResponse)
+}
+
+extension URLSession: LastfmHTTPClient {}
+
 enum LastfmError: Error, LocalizedError {
     case notConfigured
     case http(Int)
@@ -22,11 +60,19 @@ enum LastfmError: Error, LocalizedError {
 }
 
 /// Minimal Last.fm API client: auth flow + now-playing + scrobble.
-actor LastfmClient {
-    private let urlSession = URLSession.shared
+actor LastfmClient: LastfmServing {
+    private let httpClient: LastfmHTTPClient
+    private let credentials: LastfmCredentials
     private var artistArtworkTasks: [String: Task<URL?, Never>] = [:]
     private var albumArtworkTasks: [String: Task<URL?, Never>] = [:]
     private var trackArtworkTasks: [String: Task<URL?, Never>] = [:]
+
+    nonisolated var isConfigured: Bool { credentials.isConfigured }
+
+    init(httpClient: LastfmHTTPClient = URLSession.shared, credentials: LastfmCredentials = LastfmConfig.credentials) {
+        self.httpClient = httpClient
+        self.credentials = credentials
+    }
 
     // MARK: Public API
 
@@ -40,7 +86,7 @@ actor LastfmClient {
     }
 
     nonisolated func authorizationURL(token: String, callbackURL: String? = nil) -> URL {
-        var str = "\(LastfmConfig.authRoot)?api_key=\(LastfmConfig.apiKey)&token=\(token)"
+        var str = "\(credentials.authRoot)?api_key=\(credentials.apiKey)&token=\(token)"
         if let cb = callbackURL?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             str += "&cb=\(cb)"
         }
@@ -349,7 +395,7 @@ actor LastfmClient {
         let concatenated = params.sorted { $0.key < $1.key }
             .map { $0.key + $0.value }
             .joined()
-        let digest = Insecure.MD5.hash(data: Data((concatenated + LastfmConfig.sharedSecret).utf8))
+        let digest = Insecure.MD5.hash(data: Data((concatenated + credentials.sharedSecret).utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
@@ -366,37 +412,38 @@ actor LastfmClient {
     /// Adds api_key + api_sig (signature excludes `format`), then `format=json`.
     private func signed(_ params: [String: String]) -> [String: String] {
         var p = params
-        p["api_key"] = LastfmConfig.apiKey
+        p["api_key"] = credentials.apiKey
         p["api_sig"] = signature(p)
         p["format"] = "json"
         return p
     }
 
     private func get(_ params: [String: String], requiresSignature: Bool = true) async throws -> Data {
-        guard LastfmConfig.isConfigured else { throw LastfmError.notConfigured }
-        var components = URLComponents(url: LastfmConfig.apiRoot, resolvingAgainstBaseURL: false)!
+        guard credentials.isConfigured else { throw LastfmError.notConfigured }
+        var components = URLComponents(url: credentials.apiRoot, resolvingAgainstBaseURL: false)!
         let finalParams: [String: String]
         if requiresSignature {
             finalParams = signed(params)
         } else {
             var p = params
-            p["api_key"] = LastfmConfig.apiKey
+            p["api_key"] = credentials.apiKey
             p["format"] = "json"
             finalParams = p
         }
         components.queryItems = finalParams.map { URLQueryItem(name: $0.key, value: $0.value) }
-        let (data, response) = try await urlSession.data(from: components.url!)
+        let request = URLRequest(url: components.url!)
+        let (data, response) = try await httpClient.data(for: request)
         try validate(data, response)
         return data
     }
 
     private func post(_ params: [String: String]) async throws -> Data {
-        guard LastfmConfig.isConfigured else { throw LastfmError.notConfigured }
-        var request = URLRequest(url: LastfmConfig.apiRoot)
+        guard credentials.isConfigured else { throw LastfmError.notConfigured }
+        var request = URLRequest(url: credentials.apiRoot)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = formEncode(signed(params)).data(using: .utf8)
-        let (data, response) = try await urlSession.data(for: request)
+        let (data, response) = try await httpClient.data(for: request)
         try validate(data, response)
         return data
     }

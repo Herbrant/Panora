@@ -16,4 +16,24 @@ enum LastfmConfig {
 
     static let apiRoot = URL(string: "https://ws.audioscrobbler.com/2.0/")!
     static let authRoot = "https://www.last.fm/api/auth/"
+
+    static var credentials: LastfmCredentials {
+        LastfmCredentials(
+            apiKey: apiKey,
+            sharedSecret: sharedSecret,
+            apiRoot: apiRoot,
+            authRoot: authRoot
+        )
+    }
+}
+
+struct LastfmCredentials {
+    var apiKey: String
+    var sharedSecret: String
+    var apiRoot: URL
+    var authRoot: String
+
+    var isConfigured: Bool {
+        !apiKey.hasPrefix("YOUR_") && !sharedSecret.hasPrefix("YOUR_")
+    }
 }

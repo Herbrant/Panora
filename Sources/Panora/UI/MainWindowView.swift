@@ -29,10 +29,13 @@ struct MainWindowView: View {
     var body: some View {
         if appState.session == nil {
             OnboardingView()
+                .accessibilityIdentifier("panora.onboarding")
         } else if !appState.hasCompletedSourceSetup {
             AppSourceSetupView()
+                .accessibilityIdentifier("panora.sourceSetup")
         } else {
             splitView
+                .accessibilityIdentifier("panora.mainSplitView")
         }
     }
 
@@ -41,8 +44,10 @@ struct MainWindowView: View {
             List(Section.allCases, selection: $selection) { section in
                 Label(section.title, systemImage: section.icon)
                     .panoraArrowCursor()
+                    .accessibilityIdentifier("panora.sidebar.\(section.rawValue)")
                     .tag(section)
             }
+            .accessibilityIdentifier("panora.sidebar")
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
         } detail: {
             switch selection ?? .history {
