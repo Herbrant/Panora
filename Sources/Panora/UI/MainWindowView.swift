@@ -5,17 +5,20 @@ struct MainWindowView: View {
 
     private enum Section: String, CaseIterable, Identifiable {
         case history
+        case statistics
         case settings
         var id: String { rawValue }
         var title: String {
             switch self {
             case .history: return "History"
+            case .statistics: return "Statistics"
             case .settings: return "Settings"
             }
         }
         var icon: String {
             switch self {
             case .history: return "clock.arrow.circlepath"
+            case .statistics: return "chart.bar.fill"
             case .settings: return "gearshape"
             }
         }
@@ -43,6 +46,7 @@ struct MainWindowView: View {
         } detail: {
             switch selection ?? .history {
             case .history: HistoryView()
+            case .statistics: StatisticsView()
             case .settings: SettingsView()
             }
         }

@@ -65,6 +65,135 @@ actor LastfmClient {
         _ = try await post(params)
     }
 
+    // MARK: User statistics (public read methods, no signature)
+
+    func userInfo(_ user: String) async throws -> LastfmUserInfo {
+        let data = try await get(["method": "user.getInfo", "user": user], requiresSignature: false)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let obj = root["user"] as? [String: Any],
+              let name = obj["name"] as? String else {
+            throw LastfmError.malformedResponse
+        }
+        let real = (obj["realname"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        var registered: Date?
+        if let reg = obj["registered"] as? [String: Any] {
+            let uts = (reg["unixtime"] as? String) ?? (reg["#text"] as? String)
+            if let uts, let secs = TimeInterval(uts) { registered = Date(timeIntervalSince1970: secs) }
+        }
+        return LastfmUserInfo(
+            name: name,
+            realName: real,
+            playcount: Self.int(obj["playcount"]),
+            registered: registered,
+            imageURL: Self.imageURL(obj["image"]),
+            profileURL: (obj["url"] as? String).flatMap(URL.init(string:))
+        )
+    }
+
+    func topArtists(_ user: String, period: StatsPeriod, limit: Int = 20) async throws -> [LastfmTopArtist] {
+        let data = try await get([
+            "method": "user.getTopArtists", "user": user,
+            "period": period.apiValue, "limit": String(limit)
+        ], requiresSignature: false)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let container = root["topartists"] as? [String: Any],
+              let arr = container["artist"] as? [[String: Any]] else {
+            throw LastfmError.malformedResponse
+        }
+        return arr.compactMap { obj in
+            guard let name = obj["name"] as? String else { return nil }
+            return LastfmTopArtist(
+                name: name,
+                playcount: Self.int(obj["playcount"]),
+                imageURL: Self.imageURL(obj["image"]),
+                url: (obj["url"] as? String).flatMap(URL.init(string:))
+            )
+        }
+    }
+
+    func topTracks(_ user: String, period: StatsPeriod, limit: Int = 20) async throws -> [LastfmTopTrack] {
+        let data = try await get([
+            "method": "user.getTopTracks", "user": user,
+            "period": period.apiValue, "limit": String(limit)
+        ], requiresSignature: false)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let container = root["toptracks"] as? [String: Any],
+              let arr = container["track"] as? [[String: Any]] else {
+            throw LastfmError.malformedResponse
+        }
+        return arr.compactMap { obj in
+            guard let name = obj["name"] as? String else { return nil }
+            let artist = (obj["artist"] as? [String: Any])?["name"] as? String ?? ""
+            return LastfmTopTrack(
+                name: name,
+                artist: artist,
+                playcount: Self.int(obj["playcount"]),
+                imageURL: Self.imageURL(obj["image"]),
+                url: (obj["url"] as? String).flatMap(URL.init(string:))
+            )
+        }
+    }
+
+    func recentTracks(_ user: String, limit: Int = 20) async throws -> [LastfmRecentTrack] {
+        let data = try await get([
+            "method": "user.getRecentTracks", "user": user, "limit": String(limit)
+        ], requiresSignature: false)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let container = root["recenttracks"] as? [String: Any] else {
+            throw LastfmError.malformedResponse
+        }
+        // `track` is an array, or a single object when only one entry exists.
+        let arr: [[String: Any]]
+        if let list = container["track"] as? [[String: Any]] {
+            arr = list
+        } else if let single = container["track"] as? [String: Any] {
+            arr = [single]
+        } else {
+            arr = []
+        }
+        return arr.compactMap { obj in
+            guard let name = obj["name"] as? String else { return nil }
+            let artist = (obj["artist"] as? [String: Any])?["#text"] as? String ?? ""
+            let album = ((obj["album"] as? [String: Any])?["#text"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            let nowPlaying = ((obj["@attr"] as? [String: Any])?["nowplaying"] as? String) == "true"
+            var date: Date?
+            if let d = obj["date"] as? [String: Any], let uts = d["uts"] as? String, let secs = TimeInterval(uts) {
+                date = Date(timeIntervalSince1970: secs)
+            }
+            return LastfmRecentTrack(
+                name: name,
+                artist: artist,
+                album: album,
+                date: date,
+                nowPlaying: nowPlaying,
+                imageURL: Self.imageURL(obj["image"])
+            )
+        }
+    }
+
+    // MARK: Parsing helpers
+
+    /// Last.fm encodes counts as strings.
+    private static func int(_ value: Any?) -> Int {
+        if let i = value as? Int { return i }
+        if let s = value as? String { return Int(s) ?? 0 }
+        return 0
+    }
+
+    /// Picks the largest non-empty URL from a Last.fm `[{"#text","size"}]` image array.
+    private static func imageURL(_ value: Any?) -> URL? {
+        guard let images = value as? [[String: Any]] else { return nil }
+        let order = ["mega", "extralarge", "large", "medium", "small", ""]
+        for size in order {
+            if let match = images.first(where: { ($0["size"] as? String) == size }),
+               let text = match["#text"] as? String, !text.isEmpty {
+                return URL(string: text)
+            }
+        }
+        let any = images.compactMap { ($0["#text"] as? String).flatMap { $0.isEmpty ? nil : $0 } }.last
+        return any.flatMap(URL.init(string:))
+    }
+
     // MARK: Helpers
 
     private func trackParams(method: String, track: ScrobbleTrack, sessionKey: String) -> [String: String] {
@@ -106,10 +235,19 @@ actor LastfmClient {
         return p
     }
 
-    private func get(_ params: [String: String]) async throws -> Data {
+    private func get(_ params: [String: String], requiresSignature: Bool = true) async throws -> Data {
         guard LastfmConfig.isConfigured else { throw LastfmError.notConfigured }
         var components = URLComponents(url: LastfmConfig.apiRoot, resolvingAgainstBaseURL: false)!
-        components.queryItems = signed(params).map { URLQueryItem(name: $0.key, value: $0.value) }
+        let finalParams: [String: String]
+        if requiresSignature {
+            finalParams = signed(params)
+        } else {
+            var p = params
+            p["api_key"] = LastfmConfig.apiKey
+            p["format"] = "json"
+            finalParams = p
+        }
+        components.queryItems = finalParams.map { URLQueryItem(name: $0.key, value: $0.value) }
         let (data, response) = try await urlSession.data(from: components.url!)
         try validate(data, response)
         return data
