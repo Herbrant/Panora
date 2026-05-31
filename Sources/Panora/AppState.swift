@@ -61,6 +61,7 @@ final class AppState {
         sessionRef = { [weak self] in self?.session }
 
         loadPreferences()
+        discoverInstalledMusicApps()
         if let sourceSetupCompleted {
             hasCompletedSourceSetup = sourceSetupCompleted
         }
@@ -109,8 +110,30 @@ final class AppState {
         engine.handle(filter(monitor.current))
     }
 
+    func discoverInstalledMusicApps() {
+        let validIDs = Set(knownMusicApps.map(\.bundleID)).union(mediaRemoteBundleMapping.values)
+        for key in knownApps.keys where !validIDs.contains(key) {
+            knownApps.removeValue(forKey: key)
+        }
+        for (bundleID, name) in knownMusicApps {
+            guard knownApps[bundleID] == nil else { continue }
+            if NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil {
+                knownApps[bundleID] = name
+            }
+        }
+        if knownApps.isEmpty { return }
+        savePreferences()
+    }
+
+    func setupSelectiveApps(_ allowed: Set<String>) {
+        allowedApps = allowed
+        savePreferences()
+        completeSourceSetup(selective: true)
+    }
+
     private func registerApp(_ track: TrackPlayback) {
-        guard let id = track.bundleIdentifier else { return }
+        guard let raw = track.bundleIdentifier else { return }
+        let id = mediaRemoteBundleMapping[raw] ?? raw
         if knownApps[id] == nil {
             knownApps[id] = track.appName ?? id
             savePreferences()

@@ -47,9 +47,17 @@ struct SettingsView: View {
 
                 if appState.selectiveScrobblingEnabled {
                     if appState.knownApps.isEmpty {
-                        Text("No apps detected yet. Play music to see available sources.")
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("No music apps found on your system.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Scan for apps") {
+                                appState.discoverInstalledMusicApps()
+                            }
+                            .buttonStyle(.plain)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.accentColor)
+                        }
                     } else {
                         ForEach(appState.knownApps.sorted(by: { $0.value < $1.value }), id: \.key) { id, name in
                             Toggle(name, isOn: Binding(

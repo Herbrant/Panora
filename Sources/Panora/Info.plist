@@ -12,8 +12,6 @@
     <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
