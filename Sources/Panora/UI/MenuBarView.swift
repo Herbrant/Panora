@@ -3,6 +3,7 @@ import SwiftUI
 struct MenuBarView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -91,6 +92,7 @@ struct MenuBarView: View {
                             window.orderFrontRegardless()
                         }
                     }
+                    dismiss()
                 }
                 Spacer()
                 Button("Quit") { NSApplication.shared.terminate(nil) }
