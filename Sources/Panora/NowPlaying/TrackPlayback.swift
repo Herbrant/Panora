@@ -80,3 +80,16 @@ extension TrackPlayback: Equatable {
         lhs.isPlaying == rhs.isPlaying
     }
 }
+
+extension NSImage {
+    func jpegData(compressionFactor: CGFloat = 0.6) -> Data? {
+        if let cgImage = cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            let bitmap = NSBitmapImageRep(cgImage: cgImage)
+            return bitmap.representation(using: .jpeg, properties: [.compressionFactor: compressionFactor])
+        }
+        guard let tiff = tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff)
+        else { return nil }
+        return bitmap.representation(using: .jpeg, properties: [.compressionFactor: compressionFactor])
+    }
+}

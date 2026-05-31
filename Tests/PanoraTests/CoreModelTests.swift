@@ -65,6 +65,7 @@ final class CoreModelTests: XCTestCase {
         XCTAssertEqual(entry.attempts, 0)
         XCTAssertNil(entry.lastError)
         XCTAssertEqual(entry.scrobbleTrack, track)
+        XCTAssertNil(entry.artworkData)
 
         entry.status = .failed
         XCTAssertEqual(entry.statusRaw, ScrobbleStatus.failed.rawValue)

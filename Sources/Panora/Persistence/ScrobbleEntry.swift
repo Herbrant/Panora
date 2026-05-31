@@ -19,6 +19,8 @@ final class ScrobbleEntry {
     var attempts: Int
     var lastError: String?
     var createdAt: Date
+    /// Compressed JPEG data of the album artwork, captured at scrobble time.
+    var artworkData: Data?
 
     var status: ScrobbleStatus {
         get { ScrobbleStatus(rawValue: statusRaw) ?? .pending }
@@ -29,7 +31,7 @@ final class ScrobbleEntry {
         ScrobbleTrack(artist: artist, title: title, album: album, durationSeconds: durationSeconds)
     }
 
-    init(track: ScrobbleTrack, timestamp: Int, status: ScrobbleStatus = .pending) {
+    init(track: ScrobbleTrack, timestamp: Int, status: ScrobbleStatus = .pending, artworkData: Data? = nil) {
         self.artist = track.artist
         self.title = track.title
         self.album = track.album
@@ -39,5 +41,6 @@ final class ScrobbleEntry {
         self.attempts = 0
         self.lastError = nil
         self.createdAt = Date()
+        self.artworkData = artworkData
     }
 }

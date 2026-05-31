@@ -33,12 +33,47 @@ struct HistoryView: View {
     }
 }
 
+private struct ArtworkThumbnail: View {
+    let imageData: Data?
+
+    var body: some View {
+        if let data = imageData, let image = NSImage(data: data) {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 40, height: 40)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .panoraArrowCursor()
+        } else {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.quaternary)
+                .frame(width: 40, height: 40)
+                .overlay(Image(systemName: "music.note").foregroundStyle(.secondary))
+                .panoraArrowCursor()
+        }
+    }
+}
+
 private struct CurrentScrobbleRow: View {
     let track: TrackPlayback
     @State private var isAnimating = false
 
     var body: some View {
         HStack(spacing: 12) {
+            if let image = track.artwork {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .panoraArrowCursor()
+            } else {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.quaternary)
+                    .frame(width: 40, height: 40)
+                    .overlay(Image(systemName: "music.note").foregroundStyle(.secondary))
+                    .panoraArrowCursor()
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title).fontWeight(.medium)
                 Text(track.artist).foregroundStyle(.secondary).font(.subheadline)
@@ -67,6 +102,7 @@ private struct ScrobbleRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            ArtworkThumbnail(imageData: entry.artworkData)
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.title).fontWeight(.medium)
                 Text(entry.artist).foregroundStyle(.secondary).font(.subheadline)

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -22,6 +23,9 @@ final class ScrobbleEngine {
     private var currentStartUnix: Int = 0
     private var scrobbled = false
     private var scrobbleTask: Task<Void, Never>?
+    /// Updated on each same-track callback so artwork is available at scrobble time
+    /// even if the initial payload had no artwork yet.
+    private var pendingArtwork: NSImage?
 
     init(
         client: LastfmServing,
@@ -50,6 +54,9 @@ final class ScrobbleEngine {
             startNewTrack(track)
         } else {
             // Same track: react to play/pause transitions.
+            if track.artwork != nil {
+                pendingArtwork = track.artwork
+            }
             if track.isPlaying {
                 if scrobbleTask == nil && !scrobbled {
                     scheduleScrobble(track)
@@ -83,6 +90,7 @@ final class ScrobbleEngine {
         currentIdentity = track.identity
         currentStartUnix = Int(dateProvider().timeIntervalSince1970 - track.elapsedSeconds)
         scrobbled = false
+        pendingArtwork = track.artwork
 
         guard track.isPlaying else { return }
         Task { await sendNowPlaying(track) }
@@ -112,7 +120,9 @@ final class ScrobbleEngine {
     }
 
     private func commitScrobble(_ track: TrackPlayback) async {
-        let entry = ScrobbleEntry(track: track.scrobbleTrack, timestamp: currentStartUnix)
+        let artwork = track.artwork ?? pendingArtwork
+        let artworkData = artwork?.jpegData()
+        let entry = ScrobbleEntry(track: track.scrobbleTrack, timestamp: currentStartUnix, artworkData: artworkData)
         store.insert(entry)
         lastScrobbledIdentity = track.identity
         await flushQueue()
