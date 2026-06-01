@@ -19,6 +19,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Generate secrets stub
+        run: ./Scripts/generate-secrets.sh
+
       - name: Build
         run: swift build
 
@@ -76,6 +79,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Generate secrets stub
+        run: ./Scripts/generate-secrets.sh
 
       - name: Build
         run: swift build
