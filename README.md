@@ -1,4 +1,5 @@
 # Panora
+[![codecov](https://codecov.io/gh/Herbrant/Panora/graph/badge.svg?token=H2M5BTJHZN)](https://codecov.io/gh/Herbrant/Panora)
 
 Native macOS (SwiftUI) scrobbler that detects playing music and submits it to **Last.fm**.
 Menu bar app + window, with history, statistics, and an offline retry queue.
@@ -118,7 +119,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test, and pull-request guidanc
 ## Acknowledgements
 
 Panora was inspired by [pano-scrobbler](https://github.com/kawaiiDango/pano-scrobbler),
-an excellent Android scrobbler. Several UX ideas and scrobble-rule details were informed
+an excellent scrobbler for Windows, Linux and Android. Several UX ideas and scrobble-rule details were informed
 by studying that project.
 
 ## License
