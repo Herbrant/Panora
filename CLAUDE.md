@@ -20,8 +20,14 @@ open Package.swift           # open in Xcode to actually RUN the GUI
   from the CLI binary** — `MenuBarExtra`, window scenes, and SwiftData need a
   proper `.app` bundle, so run via Xcode (scheme `OpenScrobbler`, Run).
 - There are no tests yet; there is no lint config.
-- Last.fm credentials are required at runtime: set `LASTFM_API_KEY` /
-  `LASTFM_API_SECRET` (Xcode scheme env vars) or edit `LastfmConfig.swift`.
+- Last.fm credentials priority (first wins):
+  1. Environment variables `LASTFM_API_KEY` / `LASTFM_API_SECRET` (dev, tests)
+  2. `Secrets.generated.swift` (generated from `Config.xcconfig` at build time)
+  3. Placeholder strings → `isConfigured` = false
+  To embed credentials for release: copy `Config.template.xcconfig` →
+  `Config.xcconfig`, fill in real values, then run
+  `./Scripts/generate-secrets.sh` or add it as a Run Script build phase.
+  To use env vars for dev: set them in the Xcode scheme (Run → Arguments).
 
 ## Critical constraint: now-playing detection
 

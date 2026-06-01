@@ -1,0 +1,9 @@
+// Last.fm API credentials
+// Copy this file to Config.xcconfig, fill in your real values, and run
+//   ./Scripts/generate-secrets.sh
+// to embed them into the binary.
+//
+// Get your API key and secret at https://www.last.fm/api/account/create
+
+LASTFM_API_KEY = YOUR_LASTFM_API_KEY
+LASTFM_API_SECRET = YOUR_LASTFM_API_SECRET

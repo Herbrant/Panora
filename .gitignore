@@ -20,3 +20,7 @@ Package.resolved
 *.lock
 # Added by code-review-graph
 .code-review-graph/
+
+# Build-injected credentials
+Config.xcconfig
+Sources/Panora/Scrobbling/Secrets.generated.swift
