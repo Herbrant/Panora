@@ -14,6 +14,9 @@ let package = Package(
                 .product(name: "MediaRemoteAdapter", package: "mediaremote-adapter")
             ],
             exclude: ["Info.plist"],
+            resources: [
+                .process("Resources")
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]

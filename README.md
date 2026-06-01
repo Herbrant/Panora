@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/panora-icon.png" alt="Panora icon" width="128" height="128">
+</p>
+
 # Panora
 [![codecov](https://codecov.io/gh/Herbrant/Panora/graph/badge.svg?token=H2M5BTJHZN)](https://codecov.io/gh/Herbrant/Panora)
 
