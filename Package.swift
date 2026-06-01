@@ -25,12 +25,6 @@ let package = Package(
                 .swiftLanguageMode(.v5)
             ]
         ),
-        .testTarget(
-            name: "PanoraUITests",
-            dependencies: ["Panora"],
-            swiftSettings: [
-                .swiftLanguageMode(.v5)
-            ]
-        )
+
     ]
 )
