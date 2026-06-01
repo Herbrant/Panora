@@ -86,13 +86,18 @@ jobs:
       - name: Build
         run: swift build
 
+      - name: Generate Xcode workspace & scheme
+        run: ./Scripts/generate-xcode-workspace.sh
+
       - name: Run UI tests
+        env:
+          PANORA_RUN_UI_TESTS: "1"
+          PANORA_APP_PATH: ${{ github.workspace }}/.build/debug/Panora
         run: |
           xcodebuild test \
             -workspace .swiftpm/xcode/package.xcworkspace \
             -scheme Panora \
             -destination 'platform=macOS' \
-            -skip-testing PanoraTests \
-            -resultBundlePath uitest-results \
-            PANORA_RUN_UI_TESTS=1 2>&1
+            -only-testing:PanoraUITests \
+            -resultBundlePath uitest-results 2>&1
         timeout-minutes: 15

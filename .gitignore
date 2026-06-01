@@ -7,7 +7,7 @@ DerivedData/
 
 # Swift Package Manager
 .build/
-.swiftpm/
+.swiftpm/*
 Packages/
 
 # SwiftPM state (regenerate lockfile from scratch with `swift package resolve`)
