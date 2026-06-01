@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import SwiftUI
 
+/// One-time setup asking whether to scrobble from all apps or a chosen subset.
 struct AppSourceSetupView: View {
     @Environment(AppState.self) private var appState
     @State private var phase: Phase = .choice

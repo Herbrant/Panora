@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Open Scrobbler is a native macOS (SwiftUI) Last.fm scrobbler: it detects what is
+Panora is a native macOS (SwiftUI) Last.fm scrobbler: it detects what is
 playing on the system and submits "now playing" + scrobbles. Menu bar app +
-window, with a local history and offline retry queue. It is a Swift Package
-(no `.xcodeproj`), opened directly in Xcode.
+window, with a local history, statistics, and offline retry queue. It is a Swift
+Package (no `.xcodeproj`), opened directly in Xcode.
 
 ## Commands
 
@@ -18,8 +18,8 @@ open Package.swift           # open in Xcode to actually RUN the GUI
 
 - `swift build` only verifies compilation. The app **cannot be meaningfully run
   from the CLI binary** — `MenuBarExtra`, window scenes, and SwiftData need a
-  proper `.app` bundle, so run via Xcode (scheme `OpenScrobbler`, Run).
-- There are no tests yet; there is no lint config.
+  proper `.app` bundle, so run via Xcode (scheme `Panora`, Run).
+- Tests run with `swift test` (unit + UI-test targets); there is no lint config.
 - Last.fm credentials priority (first wins):
   1. Environment variables `LASTFM_API_KEY` / `LASTFM_API_SECRET` (dev, tests)
   2. `Secrets.generated.swift` (generated from `Config.xcconfig` at build time)

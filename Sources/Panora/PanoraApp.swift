@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import SwiftData
 import SwiftUI
 
+/// App entry point: builds the SwiftData container and ``AppState``, then hosts the
+/// main window and the menu bar extra. Substitutes test doubles under UI testing.
 @main
 struct PanoraApp: App {
     private let container: ModelContainer
@@ -49,6 +53,7 @@ struct PanoraApp: App {
     }
 }
 
+/// In-memory session store used during UI tests so runs do not touch the Keychain.
 private final class InMemoryLastfmSessionStore: LastfmSessionStoring {
     private var session: LastfmSession?
 
@@ -69,6 +74,7 @@ private final class InMemoryLastfmSessionStore: LastfmSessionStoring {
     }
 }
 
+/// Deterministic ``LastfmServing`` returning canned data for UI tests (no network).
 private final class UITestLastfmClient: LastfmServing {
     var isConfigured: Bool { true }
 

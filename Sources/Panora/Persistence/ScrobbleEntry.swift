@@ -1,12 +1,19 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import Foundation
 import SwiftData
 
+/// Delivery state of a scrobble in the local queue.
 enum ScrobbleStatus: String, Codable {
+    /// Not yet sent to Last.fm.
     case pending
+    /// Successfully delivered.
     case sent
+    /// A delivery attempt failed; eligible for retry until the attempt cap.
     case failed
 }
 
+/// A persisted scrobble and its delivery state — one row in the offline retry queue.
 @Model
 final class ScrobbleEntry {
     var artist: String

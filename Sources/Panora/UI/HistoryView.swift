@@ -1,6 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import SwiftData
 import SwiftUI
 
+/// Scrobble history list, with the live now-playing track pinned at the top.
 struct HistoryView: View {
     @Environment(AppState.self) private var appState
     @Query(sort: \ScrobbleEntry.timestamp, order: .reverse) private var entries: [ScrobbleEntry]

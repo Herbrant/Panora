@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import Foundation
 
 /// Last.fm API credentials. Register an app at
@@ -36,12 +38,14 @@ enum LastfmConfig {
     }
 }
 
+/// Resolved Last.fm endpoints + secrets, injected into ``LastfmClient``.
 struct LastfmCredentials {
     var apiKey: String
     var sharedSecret: String
     var apiRoot: URL
     var authRoot: String
 
+    /// `false` while either secret is still a `YOUR_…` placeholder.
     var isConfigured: Bool {
         !apiKey.hasPrefix("YOUR_") && !sharedSecret.hasPrefix("YOUR_")
     }

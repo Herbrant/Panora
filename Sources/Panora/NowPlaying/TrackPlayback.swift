@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import AppKit
 import Foundation
 import MediaRemoteAdapter
@@ -29,7 +31,8 @@ struct TrackPlayback {
         ScrobbleTrack(artist: artist, title: title, album: album, durationSeconds: durationSeconds)
     }
 
-    /// Builds a snapshot from the adapter payload, requiring at least artist + title.
+    /// Memberwise initializer. Used by callers that already have track fields
+    /// (e.g. tests); the adapter path uses ``init?(payload:)``.
     init(
         artist: String,
         title: String,
@@ -82,6 +85,7 @@ extension TrackPlayback: Equatable {
 }
 
 extension NSImage {
+    /// Encodes the image as JPEG data for compact artwork storage in the scrobble queue.
     func jpegData(compressionFactor: CGFloat = 0.6) -> Data? {
         if let cgImage = cgImage(forProposedRect: nil, context: nil, hints: nil) {
             let bitmap = NSBitmapImageRep(cgImage: cgImage)

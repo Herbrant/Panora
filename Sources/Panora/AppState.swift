@@ -1,9 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import AppKit
 import Foundation
 import Observation
 import SwiftData
 
 /// Top-level coordinator wiring detection, scrobbling, persistence and auth.
+///
+/// Owns the ``NowPlayingMonitor``, ``ScrobbleEngine`` and ``LastfmServing`` client,
+/// holds auth/session state, and applies the per-app source filter before tracks
+/// reach the engine. Injected into the SwiftUI environment as the single source of truth.
 @MainActor
 @Observable
 final class AppState {
@@ -73,6 +79,7 @@ final class AppState {
         }
     }
 
+    /// Starts now-playing detection and flushes any queued scrobbles. Idempotent.
     func start() {
         guard !started else { return }
         started = true
@@ -110,6 +117,8 @@ final class AppState {
         engine.handle(filter(monitor.current))
     }
 
+    /// Scans for installed apps from ``knownMusicApps`` and prunes stale entries,
+    /// populating the list the user picks from in selective mode.
     func discoverInstalledMusicApps() {
         let validIDs = Set(knownMusicApps.map(\.bundleID)).union(mediaRemoteBundleMapping.values)
         for key in knownApps.keys where !validIDs.contains(key) {
@@ -140,6 +149,7 @@ final class AppState {
         }
     }
 
+    /// Drops the track when selective mode is on and its source app is not allowed.
     private func filter(_ track: TrackPlayback?) -> TrackPlayback? {
         guard selectiveScrobblingEnabled,
               let track,
@@ -182,6 +192,7 @@ final class AppState {
 
     // MARK: Auth
 
+    /// Starts the desktop auth flow: fetches a token and opens the browser authorization page.
     func beginLogin() {
         authError = nil
         isAuthorizing = true
@@ -199,6 +210,7 @@ final class AppState {
         }
     }
 
+    /// Exchanges the pending token for a session, persists it, and flushes the queue.
     func completeLogin() {
         guard let token = pendingToken else {
             authError = "Start sign-in first."
@@ -226,6 +238,7 @@ final class AppState {
         isAuthorizing = false
     }
 
+    /// Handles the `panora://auth/callback` deep link by completing sign-in.
     func handleCallback(url: URL) {
         guard url.scheme == "panora", url.host == "auth" else { return }
         completeLogin()

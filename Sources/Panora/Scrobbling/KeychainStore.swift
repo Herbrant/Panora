@@ -1,17 +1,22 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import Foundation
 import Security
 
+/// An authenticated Last.fm session: the username and its long-lived session key.
 struct LastfmSession: Equatable {
     var username: String
     var sessionKey: String
 }
 
+/// Persistence for the Last.fm session, abstracted so tests can use an in-memory store.
 protocol LastfmSessionStoring {
     func load() -> LastfmSession?
     func save(_ session: LastfmSession)
     func clear()
 }
 
+/// Keychain-backed ``LastfmSessionStoring`` used in production.
 struct KeychainSessionStore: LastfmSessionStoring {
     func load() -> LastfmSession? {
         KeychainStore.load()

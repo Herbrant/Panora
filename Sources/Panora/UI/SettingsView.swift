@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import SwiftUI
 
+/// Settings pane: Last.fm account (sign in/out) and per-app source filtering.
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
 

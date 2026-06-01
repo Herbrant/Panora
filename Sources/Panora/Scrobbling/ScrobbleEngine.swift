@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import AppKit
 import Foundation
 import Observation
@@ -43,6 +45,8 @@ final class ScrobbleEngine {
         self.sleep = sleep
     }
 
+    /// Feeds a now-playing update into the engine: starts a new track, reacts to
+    /// play/pause on the current track, or clears state when `track` is `nil`.
     func handle(_ track: TrackPlayback?) {
         guard let track else {
             cancelScrobbleTimer()
@@ -67,6 +71,8 @@ final class ScrobbleEngine {
         }
     }
 
+    /// Sends every queued scrobble that is still owed, marking each sent or failed.
+    /// No-op when signed out. The offline-retry mechanism.
     func flushQueue() async {
         guard let session = sessionProvider() else { return }
         for entry in store.sendable() {

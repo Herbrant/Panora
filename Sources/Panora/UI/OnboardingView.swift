@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import SwiftUI
 
+/// First-run screen prompting the user to sign in to Last.fm before scrobbling.
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
 

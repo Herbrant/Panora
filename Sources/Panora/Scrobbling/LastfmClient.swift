@@ -1,20 +1,38 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import CryptoKit
 import Foundation
 
+/// The Last.fm operations the app depends on: the desktop auth flow, scrobbling,
+/// and the read-only statistics endpoints.
+///
+/// Abstracted as a protocol so the UI and tests can inject a fake (see the
+/// UI-testing double in `PanoraApp`).
 protocol LastfmServing: AnyObject {
+    /// `false` when API credentials are missing/placeholder; sign-in is disabled until configured.
     var isConfigured: Bool { get }
 
+    /// Requests an unauthorized token to start the desktop auth flow.
     func fetchRequestToken() async throws -> String
+    /// Browser URL where the user authorizes `token`; `callbackURL` returns them to the app.
     func authorizationURL(token: String, callbackURL: String?) -> URL
+    /// Exchanges an authorized `token` for a durable session (username + session key).
     func fetchSession(token: String) async throws -> LastfmSession
+    /// Submits a `track.updateNowPlaying`; best-effort, not persisted.
     func updateNowPlaying(track: ScrobbleTrack, sessionKey: String) async throws
+    /// Submits a `track.scrobble` played at `timestamp` (Unix seconds).
     func scrobble(track: ScrobbleTrack, timestamp: Int, sessionKey: String) async throws
+    /// Fetches the profile summary for `user`.
     func userInfo(_ user: String) async throws -> LastfmUserInfo
+    /// Fetches the top artists for `user` over `period`, capped at `limit`.
     func topArtists(_ user: String, period: StatsPeriod, limit: Int) async throws -> [LastfmTopArtist]
+    /// Fetches the top tracks for `user` over `period`, capped at `limit`.
     func topTracks(_ user: String, period: StatsPeriod, limit: Int) async throws -> [LastfmTopTrack]
+    /// Fetches the most recent scrobbles for `user`, capped at `limit`.
     func recentTracks(_ user: String, limit: Int) async throws -> [LastfmRecentTrack]
 }
 
+/// Convenience overloads supplying default arguments to ``LastfmServing``.
 extension LastfmServing {
     func authorizationURL(token: String) -> URL {
         authorizationURL(token: token, callbackURL: nil)
@@ -33,16 +51,22 @@ extension LastfmServing {
     }
 }
 
+/// The networking surface ``LastfmClient`` needs, so tests can stub HTTP responses.
 protocol LastfmHTTPClient {
     func data(for request: URLRequest) async throws -> (Data, URLResponse)
 }
 
 extension URLSession: LastfmHTTPClient {}
 
+/// Errors surfaced by ``LastfmClient``.
 enum LastfmError: Error, LocalizedError {
+    /// API key/secret are missing or still placeholders.
     case notConfigured
+    /// A non-2xx HTTP status was returned.
     case http(Int)
+    /// Last.fm returned an API error (these arrive with HTTP 200, so they are checked first).
     case api(code: Int, message: String)
+    /// The response body could not be parsed into the expected shape.
     case malformedResponse
 
     var errorDescription: String? {
@@ -63,9 +87,9 @@ enum LastfmError: Error, LocalizedError {
 actor LastfmClient: LastfmServing {
     private let httpClient: LastfmHTTPClient
     private let credentials: LastfmCredentials
-    private var artistArtworkTasks: [String: Task<URL?, Never>] = [:]
-    private var albumArtworkTasks: [String: Task<URL?, Never>] = [:]
-    private var trackArtworkTasks: [String: Task<URL?, Never>] = [:]
+    /// In-flight/completed artwork lookups, keyed by a type-namespaced identity so
+    /// concurrent callers share one request per subject. See ``cachedArtworkURL(key:fetch:)``.
+    private var artworkTasks: [String: Task<URL?, Never>] = [:]
 
     nonisolated var isConfigured: Bool { credentials.isConfigured }
 
@@ -78,8 +102,7 @@ actor LastfmClient: LastfmServing {
 
     func fetchRequestToken() async throws -> String {
         let data = try await get(["method": "auth.getToken"])
-        guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let token = obj["token"] as? String else {
+        guard let token = try rootObject(data)["token"] as? String else {
             throw LastfmError.malformedResponse
         }
         return token
@@ -95,8 +118,7 @@ actor LastfmClient: LastfmServing {
 
     func fetchSession(token: String) async throws -> LastfmSession {
         let data = try await get(["method": "auth.getSession", "token": token])
-        guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let s = obj["session"] as? [String: Any],
+        guard let s = try rootObject(data)["session"] as? [String: Any],
               let name = s["name"] as? String,
               let key = s["key"] as? String else {
             throw LastfmError.malformedResponse
@@ -118,8 +140,7 @@ actor LastfmClient: LastfmServing {
 
     func userInfo(_ user: String) async throws -> LastfmUserInfo {
         let data = try await get(["method": "user.getInfo", "user": user], requiresSignature: false)
-        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let obj = root["user"] as? [String: Any],
+        guard let obj = try rootObject(data)["user"] as? [String: Any],
               let name = obj["name"] as? String else {
             throw LastfmError.malformedResponse
         }
@@ -144,8 +165,7 @@ actor LastfmClient: LastfmServing {
             "method": "user.getTopArtists", "user": user,
             "period": period.apiValue, "limit": String(limit)
         ], requiresSignature: false)
-        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let container = root["topartists"] as? [String: Any],
+        guard let container = try rootObject(data)["topartists"] as? [String: Any],
               let arr = container["artist"] as? [[String: Any]] else {
             throw LastfmError.malformedResponse
         }
@@ -173,8 +193,7 @@ actor LastfmClient: LastfmServing {
             "method": "user.getTopTracks", "user": user,
             "period": period.apiValue, "limit": String(limit)
         ], requiresSignature: false)
-        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let container = root["toptracks"] as? [String: Any],
+        guard let container = try rootObject(data)["toptracks"] as? [String: Any],
               let arr = container["track"] as? [[String: Any]] else {
             throw LastfmError.malformedResponse
         }
@@ -203,8 +222,7 @@ actor LastfmClient: LastfmServing {
         let data = try await get([
             "method": "user.getRecentTracks", "user": user, "limit": String(limit)
         ], requiresSignature: false)
-        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let container = root["recenttracks"] as? [String: Any] else {
+        guard let container = try rootObject(data)["recenttracks"] as? [String: Any] else {
             throw LastfmError.malformedResponse
         }
         // `track` is an array, or a single object when only one entry exists.
@@ -246,6 +264,14 @@ actor LastfmClient: LastfmServing {
 
     // MARK: Parsing helpers
 
+    /// Decodes response data into the top-level JSON object, or throws ``LastfmError/malformedResponse``.
+    private nonisolated func rootObject(_ data: Data) throws -> [String: Any] {
+        guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw LastfmError.malformedResponse
+        }
+        return obj
+    }
+
     /// Last.fm encodes counts as strings.
     private static func int(_ value: Any?) -> Int {
         if let i = value as? Int { return i }
@@ -269,24 +295,26 @@ actor LastfmClient: LastfmServing {
 
     // MARK: Helpers
 
+    /// Memoizes an artwork lookup so concurrent callers share one in-flight request.
+    ///
+    /// The first call for a `key` stores its `Task` in `cache`; later calls await
+    /// the same task instead of issuing a duplicate network request. Failures
+    /// resolve to `nil` and are cached, so a missing-artwork lookup is not retried.
+    private func cachedArtworkURL(key: String, fetch: @escaping () async throws -> URL?) async -> URL? {
+        if let task = artworkTasks[key] {
+            return await task.value
+        }
+        let task = Task { try? await fetch() }
+        artworkTasks[key] = task
+        return await task.value
+    }
+
     private func artistArtworkURL(artist: String) async -> URL? {
         let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedArtist.isEmpty else { return nil }
-
-        let key = trimmedArtist.lowercased()
-        if let task = artistArtworkTasks[key] {
-            return await task.value
+        return await cachedArtworkURL(key: "artist|\(trimmedArtist.lowercased())") {
+            try await self.fetchArtistArtworkURL(artist: trimmedArtist)
         }
-
-        let task = Task { [self] in
-            do {
-                return try await fetchArtistArtworkURL(artist: trimmedArtist)
-            } catch {
-                return nil
-            }
-        }
-        artistArtworkTasks[key] = task
-        return await task.value
     }
 
     private func fetchArtistArtworkURL(artist: String) async throws -> URL? {
@@ -295,8 +323,7 @@ actor LastfmClient: LastfmServing {
             "artist": artist,
             "autocorrect": "1"
         ], requiresSignature: false)
-        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let obj = root["artist"] as? [String: Any] else {
+        guard let obj = try rootObject(data)["artist"] as? [String: Any] else {
             throw LastfmError.malformedResponse
         }
         return Self.imageURL(obj["image"])
@@ -306,21 +333,10 @@ actor LastfmClient: LastfmServing {
         let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedAlbum = album.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedArtist.isEmpty, !trimmedAlbum.isEmpty else { return nil }
-
-        let key = "\(trimmedArtist.lowercased())|\(trimmedAlbum.lowercased())"
-        if let task = albumArtworkTasks[key] {
-            return await task.value
+        let key = "album|\(trimmedArtist.lowercased())|\(trimmedAlbum.lowercased())"
+        return await cachedArtworkURL(key: key) {
+            try await self.fetchAlbumArtworkURL(artist: trimmedArtist, album: trimmedAlbum)
         }
-
-        let task = Task { [self] in
-            do {
-                return try await fetchAlbumArtworkURL(artist: trimmedArtist, album: trimmedAlbum)
-            } catch {
-                return nil
-            }
-        }
-        albumArtworkTasks[key] = task
-        return await task.value
     }
 
     private func fetchAlbumArtworkURL(artist: String, album: String) async throws -> URL? {
@@ -330,8 +346,7 @@ actor LastfmClient: LastfmServing {
             "album": album,
             "autocorrect": "1"
         ], requiresSignature: false)
-        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let obj = root["album"] as? [String: Any] else {
+        guard let obj = try rootObject(data)["album"] as? [String: Any] else {
             throw LastfmError.malformedResponse
         }
         return Self.imageURL(obj["image"])
@@ -341,21 +356,10 @@ actor LastfmClient: LastfmServing {
         let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedTrack = track.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedArtist.isEmpty, !trimmedTrack.isEmpty else { return nil }
-
-        let key = "\(trimmedArtist.lowercased())|\(trimmedTrack.lowercased())"
-        if let task = trackArtworkTasks[key] {
-            return await task.value
+        let key = "track|\(trimmedArtist.lowercased())|\(trimmedTrack.lowercased())"
+        return await cachedArtworkURL(key: key) {
+            try await self.fetchTrackArtworkURL(artist: trimmedArtist, track: trimmedTrack)
         }
-
-        let task = Task { [self] in
-            do {
-                return try await fetchTrackArtworkURL(artist: trimmedArtist, track: trimmedTrack)
-            } catch {
-                return nil
-            }
-        }
-        trackArtworkTasks[key] = task
-        return await task.value
     }
 
     private func fetchTrackArtworkURL(artist: String, track: String) async throws -> URL? {
@@ -365,8 +369,7 @@ actor LastfmClient: LastfmServing {
             "track": track,
             "autocorrect": "1"
         ], requiresSignature: false)
-        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let obj = root["track"] as? [String: Any] else {
+        guard let obj = try rootObject(data)["track"] as? [String: Any] else {
             throw LastfmError.malformedResponse
         }
         let album = obj["album"] as? [String: Any]

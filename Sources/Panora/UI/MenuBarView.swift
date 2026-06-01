@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import SwiftUI
 
+/// Menu bar popover: shows the now-playing track and scrobble status, plus
+/// shortcuts to open the main window or quit.
 struct MenuBarView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.openWindow) private var openWindow

@@ -1,6 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import Foundation
 import Observation
 
+/// Loads and holds the data shown in ``StatisticsView`` (profile, top artists/tracks, recents).
 @MainActor
 @Observable
 final class StatisticsViewModel {
@@ -11,6 +14,7 @@ final class StatisticsViewModel {
     private(set) var isLoading = false
     private(set) var errorMessage: String?
 
+    /// Fetches all dashboard sections concurrently; partial failure surfaces via ``errorMessage``.
     func load(username: String, period: StatsPeriod, client: LastfmServing = LastfmClient()) async {
         isLoading = true
         errorMessage = nil

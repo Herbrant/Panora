@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import SwiftUI
 
+/// Root of the main window. Routes to onboarding, source setup, or the
+/// History/Statistics/Settings split view depending on auth and setup state.
 struct MainWindowView: View {
     @Environment(AppState.self) private var appState
 

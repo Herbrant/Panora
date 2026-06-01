@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import Foundation
 
+/// Curated bundle IDs of players and browsers that may report now-playing info.
+/// Used to seed the selective-scrobbling app list with apps actually installed.
 let knownMusicApps: [(bundleID: String, name: String)] = [
     ("com.apple.Music", "Music"),
     ("com.spotify.client", "Spotify"),
@@ -41,6 +45,8 @@ let knownMusicApps: [(bundleID: String, name: String)] = [
     ("com.vivaldi.Vivaldi", "Vivaldi"),
 ]
 
+/// Maps bundle IDs the adapter reports to the user-facing app they belong to
+/// (e.g. Safari plays through a WebKit GPU helper process).
 let mediaRemoteBundleMapping: [String: String] = [
     "com.apple.WebKit.GPU": "com.apple.Safari",
 ]

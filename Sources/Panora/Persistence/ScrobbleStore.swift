@@ -1,6 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import Foundation
 import SwiftData
 
+/// The persistence operations ``ScrobbleEngine`` needs, abstracted for testing.
 @MainActor
 protocol ScrobbleQueueStoring: AnyObject {
     func insert(_ entry: ScrobbleEntry)

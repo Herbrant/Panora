@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import Charts
 import SwiftUI
 
+/// Statistics dashboard: profile header, summary metrics, top-artist/track charts,
+/// and recent activity for the signed-in user over a selectable period.
 struct StatisticsView: View {
     @Environment(AppState.self) private var appState
     @State private var model = StatisticsViewModel()
@@ -478,44 +482,5 @@ struct StatisticsView: View {
         .frame(width: size, height: size)
         .background(.quaternary)
         .clipShape(RoundedRectangle(cornerRadius: min(size * 0.18, 8), style: .continuous))
-    }
-}
-
-private struct PlayChartItem: Identifiable {
-    let id: String
-    let label: String
-    let playcount: Int
-}
-
-private struct MetricTile: View {
-    let title: String
-    let value: String
-    let symbol: String
-    let color: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: symbol)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(color)
-                Text(title)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-
-            Text(value)
-                .font(.title3.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        }
     }
 }
