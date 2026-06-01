@@ -4,6 +4,14 @@ import XCTest
 
 @MainActor
 final class ScrobbleStoreTests: XCTestCase {
+    /// Keep the container alive for the test; the context does not retain it
+    /// strongly enough, and operations trap once it deallocates.
+    private var container: ModelContainer?
+
+    override func tearDown() {
+        container = nil
+    }
+
     func testSendableReturnsPendingAndFailedBelowRetryCapOldestFirst() async throws {
         let store = try makeStore()
         let sent = entry(title: "Sent", timestamp: 1, status: .sent)
@@ -34,10 +42,9 @@ final class ScrobbleStoreTests: XCTestCase {
 
     private func makeStore() throws -> ScrobbleStore {
         let schema = Schema([ScrobbleEntry.self])
-        let storeURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("PanoraTests-\(UUID().uuidString).store")
-        let configuration = ModelConfiguration(schema: schema, url: storeURL)
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: [configuration])
+        self.container = container
         return ScrobbleStore(context: container.mainContext)
     }
 
