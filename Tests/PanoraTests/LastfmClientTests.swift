@@ -4,6 +4,37 @@ import Foundation
 import XCTest
 
 final class LastfmClientTests: XCTestCase {
+    func testAuthTokenAndSessionUseSignedGetRequests() async throws {
+        let http = FakeHTTPClient()
+        http.enqueue(json: #"{ "token": "request-token" }"#)
+        http.enqueue(json: #"{ "session": { "name": "tester", "key": "session-key" } }"#)
+        let client = LastfmClient(httpClient: http, credentials: credentials)
+
+        let token = try await client.fetchRequestToken()
+        let session = try await client.fetchSession(token: token)
+
+        XCTAssertEqual(token, "request-token")
+        XCTAssertEqual(session, LastfmSession(username: "tester", sessionKey: "session-key"))
+
+        let tokenQuery = queryValues(try XCTUnwrap(http.requests.first?.url))
+        XCTAssertEqual(tokenQuery["method"], "auth.getToken")
+        XCTAssertEqual(tokenQuery["api_key"], "api-key")
+        XCTAssertEqual(tokenQuery["format"], "json")
+        XCTAssertEqual(tokenQuery["api_sig"], expectedSignature([
+            "method": "auth.getToken",
+            "api_key": "api-key"
+        ]))
+
+        let sessionQuery = queryValues(try XCTUnwrap(http.requests.last?.url))
+        XCTAssertEqual(sessionQuery["method"], "auth.getSession")
+        XCTAssertEqual(sessionQuery["token"], "request-token")
+        XCTAssertEqual(sessionQuery["api_sig"], expectedSignature([
+            "method": "auth.getSession",
+            "token": "request-token",
+            "api_key": "api-key"
+        ]))
+    }
+
     func testAuthorizationURLIncludesEncodedCallback() {
         let client = LastfmClient(httpClient: FakeHTTPClient(), credentials: credentials)
 
@@ -50,6 +81,31 @@ final class LastfmClientTests: XCTestCase {
             "album": "Album",
             "duration": "183",
             "timestamp": "123",
+            "sk": "session",
+            "api_key": "api-key"
+        ]))
+    }
+
+    func testUpdateNowPlayingOmitsEmptyAlbumAndNonPositiveDuration() async throws {
+        let http = FakeHTTPClient()
+        http.enqueue(json: #"{}"#)
+        let client = LastfmClient(httpClient: http, credentials: credentials)
+        let track = ScrobbleTrack(artist: "Artist", title: "Song", album: "", durationSeconds: 0)
+
+        try await client.updateNowPlaying(track: track, sessionKey: "session")
+
+        let body = try XCTUnwrap(String(data: try XCTUnwrap(http.requests.first?.httpBody), encoding: .utf8))
+        let values = formValues(body)
+        XCTAssertEqual(values["method"], "track.updateNowPlaying")
+        XCTAssertEqual(values["artist"], "Artist")
+        XCTAssertEqual(values["track"], "Song")
+        XCTAssertEqual(values["sk"], "session")
+        XCTAssertNil(values["album"])
+        XCTAssertNil(values["duration"])
+        XCTAssertEqual(values["api_sig"], expectedSignature([
+            "method": "track.updateNowPlaying",
+            "artist": "Artist",
+            "track": "Song",
             "sk": "session",
             "api_key": "api-key"
         ]))
@@ -123,6 +179,139 @@ final class LastfmClientTests: XCTestCase {
         XCTAssertEqual(recent.first?.name, "Recent")
         XCTAssertEqual(recent.first?.album, "Album")
         XCTAssertEqual(recent.first?.date, Date(timeIntervalSince1970: 1_700_000_100))
+    }
+
+    func testStatsParsersSkipIncompleteEntriesAndHandleNowPlayingRecentTrack() async throws {
+        let http = FakeHTTPClient()
+        http.enqueue(json: #"""
+        { "topartists": { "artist": [
+          { "playcount": "100" },
+          { "name": "Valid Artist", "playcount": 3, "image": [
+            { "#text": "", "size": "mega" },
+            { "#text": "https://example.test/fallback.jpg", "size": "small" }
+          ] }
+        ] } }
+        """#)
+        http.enqueue(json: #"""
+        { "toptracks": { "track": [
+          { "artist": { "name": "No Name" }, "playcount": "5" },
+          { "name": "Valid Track", "playcount": "not-a-number", "image": [{ "#text": "https://example.test/track.jpg", "size": "medium" }] }
+        ] } }
+        """#)
+        http.enqueue(json: #"""
+        { "recenttracks": { "track": [
+          { "artist": { "#text": "No Name" } },
+          { "name": "Live Track", "artist": { "#text": "Artist" }, "album": { "#text": "" },
+            "@attr": { "nowplaying": "true" },
+            "image": [{ "#text": "https://example.test/live.jpg", "size": "small" }] }
+        ] } }
+        """#)
+        let client = LastfmClient(httpClient: http, credentials: credentials)
+
+        let artists = try await client.topArtists("tester", period: .week, limit: 5)
+        let tracks = try await client.topTracks("tester", period: .week, limit: 5)
+        let recent = try await client.recentTracks("tester", limit: 5)
+
+        XCTAssertEqual(artists.map(\.name), ["Valid Artist"])
+        XCTAssertEqual(artists.first?.playcount, 3)
+        XCTAssertEqual(artists.first?.imageURL?.absoluteString, "https://example.test/fallback.jpg")
+        XCTAssertEqual(tracks.map(\.name), ["Valid Track"])
+        XCTAssertEqual(tracks.first?.artist, "")
+        XCTAssertEqual(tracks.first?.playcount, 0)
+        XCTAssertEqual(recent.map(\.name), ["Live Track"])
+        XCTAssertNil(recent.first?.album)
+        XCTAssertNil(recent.first?.date)
+        XCTAssertEqual(recent.first?.nowPlaying, true)
+    }
+
+    func testStatsEndpointsReturnEmptyRecentListWhenTrackKeyMissing() async throws {
+        let http = FakeHTTPClient()
+        http.enqueue(json: #"{ "recenttracks": {} }"#)
+        let client = LastfmClient(httpClient: http, credentials: credentials)
+
+        let recent = try await client.recentTracks("tester", limit: 10)
+
+        XCTAssertTrue(recent.isEmpty)
+    }
+
+    func testArtworkFallbacksAndCacheAvoidDuplicateLookupRequests() async throws {
+        let http = FakeHTTPClient()
+        http.enqueue(json: #"""
+        { "topartists": { "artist": [
+          { "name": "Artist", "playcount": "1", "image": [] }
+        ] } }
+        """#)
+        http.enqueue(json: #"""
+        { "artist": { "image": [
+          { "#text": "https://example.test/artist-mega.jpg", "size": "mega" }
+        ] } }
+        """#)
+        http.enqueue(json: #"""
+        { "topartists": { "artist": [
+          { "name": "Artist", "playcount": "2", "image": [] }
+        ] } }
+        """#)
+        let client = LastfmClient(httpClient: http, credentials: credentials)
+
+        let first = try await client.topArtists("tester", period: .week, limit: 1)
+        let second = try await client.topArtists("tester", period: .month, limit: 1)
+
+        XCTAssertEqual(first.first?.imageURL?.absoluteString, "https://example.test/artist-mega.jpg")
+        XCTAssertEqual(second.first?.imageURL?.absoluteString, "https://example.test/artist-mega.jpg")
+        XCTAssertEqual(http.requests.count, 3)
+        XCTAssertEqual(http.requests.map { queryValues($0.url!)["method"] }, [
+            "user.getTopArtists",
+            "artist.getInfo",
+            "user.getTopArtists"
+        ])
+    }
+
+    func testTrackArtworkFallsBackToAlbumArtwork() async throws {
+        let http = FakeHTTPClient()
+        http.enqueue(json: #"""
+        { "toptracks": { "track": [
+          { "name": "Song", "artist": { "name": "Artist" }, "playcount": "4", "image": [] }
+        ] } }
+        """#)
+        http.enqueue(json: #"""
+        { "track": { "album": { "title": "Album", "image": [] }, "image": [] } }
+        """#)
+        http.enqueue(json: #"""
+        { "album": { "image": [
+          { "#text": "https://example.test/album.jpg", "size": "extralarge" }
+        ] } }
+        """#)
+        let client = LastfmClient(httpClient: http, credentials: credentials)
+
+        let tracks = try await client.topTracks("tester", period: .overall, limit: 1)
+
+        XCTAssertEqual(tracks.first?.imageURL?.absoluteString, "https://example.test/album.jpg")
+        XCTAssertEqual(http.requests.map { queryValues($0.url!)["method"] }, [
+            "user.getTopTracks",
+            "track.getInfo",
+            "album.getInfo"
+        ])
+    }
+
+    func testMalformedAuthResponsesThrowMalformedResponse() async throws {
+        let http = FakeHTTPClient()
+        http.enqueue(json: #"{}"#)
+        http.enqueue(json: #"{ "session": { "name": "tester" } }"#)
+        let client = LastfmClient(httpClient: http, credentials: credentials)
+
+        do {
+            _ = try await client.fetchRequestToken()
+            XCTFail("Expected malformedResponse")
+        } catch LastfmError.malformedResponse {
+            // Expected.
+        }
+
+        do {
+            _ = try await client.fetchSession(token: "token")
+            XCTFail("Expected malformedResponse")
+        } catch LastfmError.malformedResponse {
+            // Expected.
+        }
     }
 
     func testApiAndHttpErrorsAreSurfaced() async throws {

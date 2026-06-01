@@ -3,7 +3,7 @@ import Foundation
 import XCTest
 
 @MainActor
-final class FakeLastfmClient: LastfmServing {
+final class FakeLastfmClient: @preconcurrency LastfmServing {
     struct ScrobbleCall: Equatable {
         var track: ScrobbleTrack
         var timestamp: Int

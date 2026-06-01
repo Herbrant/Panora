@@ -31,6 +31,42 @@ final class CoreModelTests: XCTestCase {
         XCTAssertTrue(track.isPlaying)
     }
 
+    func testTrackPlaybackUsesCurrentElapsedTimeWhenAvailable() throws {
+        let payload = TrackInfo.Payload(
+            title: "Song",
+            artist: "Artist",
+            isPlaying: false,
+            durationMicros: 200_000_000,
+            elapsedTimeMicros: 20_000_000,
+            applicationName: "Music",
+            bundleIdentifier: "com.apple.Music",
+            timestampEpochMicros: 1_700_000_000_000_000,
+            playbackRate: 1
+        )
+
+        let track = try XCTUnwrap(TrackPlayback(payload: payload))
+
+        XCTAssertEqual(track.elapsedSeconds, 20)
+        XCTAssertEqual(track.durationSeconds, 200)
+        XCTAssertEqual(track.appName, "Music")
+        XCTAssertEqual(track.bundleIdentifier, "com.apple.Music")
+    }
+
+    func testTrackPlaybackDefaultsMissingOptionalPayloadFields() throws {
+        let payload = TrackInfo.Payload(title: "Song", artist: "Artist")
+
+        let track = try XCTUnwrap(TrackPlayback(payload: payload))
+
+        XCTAssertEqual(track.identity, "Artist|Song|")
+        XCTAssertNil(track.album)
+        XCTAssertNil(track.durationSeconds)
+        XCTAssertEqual(track.elapsedSeconds, 0)
+        XCTAssertFalse(track.isPlaying)
+        XCTAssertNil(track.bundleIdentifier)
+        XCTAssertNil(track.appName)
+        XCTAssertNil(track.artwork)
+    }
+
     func testTrackPlaybackEqualityIgnoresArtworkAndElapsedSeconds() {
         let imageA = NSImage(size: NSSize(width: 1, height: 1))
         let imageB = NSImage(size: NSSize(width: 2, height: 2))
@@ -52,6 +88,32 @@ final class CoreModelTests: XCTestCase {
         XCTAssertEqual(StatsPeriod.overall.title, "All time")
     }
 
+    func testStatsModelIdentifiers() {
+        let artist = LastfmTopArtist(name: "Artist", playcount: 1, imageURL: nil, url: nil)
+        let track = LastfmTopTrack(name: "Song", artist: "Artist", playcount: 2, imageURL: nil, url: nil)
+        let datedRecent = LastfmRecentTrack(
+            name: "Recent",
+            artist: "Artist",
+            album: nil,
+            date: Date(timeIntervalSince1970: 123),
+            nowPlaying: false,
+            imageURL: nil
+        )
+        let liveRecent = LastfmRecentTrack(
+            name: "Live",
+            artist: "Artist",
+            album: nil,
+            date: nil,
+            nowPlaying: true,
+            imageURL: nil
+        )
+
+        XCTAssertEqual(artist.id, "Artist")
+        XCTAssertEqual(track.id, "Artist|Song")
+        XCTAssertEqual(datedRecent.id, "Artist|Recent|123.0")
+        XCTAssertEqual(liveRecent.id, "Artist|Live|0.0")
+    }
+
     func testScrobbleEntryDefaultsAndTrackConversion() {
         let track = ScrobbleTrack(artist: "Artist", title: "Song", album: "Album", durationSeconds: 240)
         let entry = ScrobbleEntry(track: track, timestamp: 123)
@@ -69,5 +131,17 @@ final class CoreModelTests: XCTestCase {
 
         entry.status = .failed
         XCTAssertEqual(entry.statusRaw, ScrobbleStatus.failed.rawValue)
+    }
+
+    func testImageJPEGDataReturnsDataForDrawableImage() throws {
+        let image = NSImage(size: NSSize(width: 4, height: 4))
+        image.lockFocus()
+        NSColor.red.setFill()
+        NSRect(x: 0, y: 0, width: 4, height: 4).fill()
+        image.unlockFocus()
+
+        let data = try XCTUnwrap(image.jpegData())
+
+        XCTAssertFalse(data.isEmpty)
     }
 }

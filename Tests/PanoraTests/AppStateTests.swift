@@ -220,6 +220,47 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.allowedApps.contains("com.test.B"))
     }
 
+    func testSetupSelectiveAppsPersistsAllowedAppsAndCompletesSetup() {
+        let defaults = makeDefaults()
+        let state = AppState(
+            context: makeContext(), sessionStore: FakeSessionStore(),
+            defaults: defaults, startsMonitor: false, opensAuthorization: false
+        )
+
+        state.setupSelectiveApps(["com.test.A", "com.test.B"])
+
+        XCTAssertTrue(state.hasCompletedSourceSetup)
+        XCTAssertTrue(state.selectiveScrobblingEnabled)
+        XCTAssertEqual(state.allowedApps, ["com.test.A", "com.test.B"])
+
+        let reloaded = AppState(
+            context: makeContext(), sessionStore: FakeSessionStore(),
+            defaults: defaults, startsMonitor: false, opensAuthorization: false
+        )
+        XCTAssertTrue(reloaded.hasCompletedSourceSetup)
+        XCTAssertTrue(reloaded.selectiveScrobblingEnabled)
+        XCTAssertEqual(reloaded.allowedApps, ["com.test.A", "com.test.B"])
+    }
+
+    func testSelectiveFilteringAllowsOnlyConfiguredAppsToReachEngine() async {
+        let client = FakeLastfmClient()
+        let state = AppState(
+            context: makeContext(), client: client, sessionStore: FakeSessionStore(),
+            defaults: makeDefaults(), startsMonitor: false, opensAuthorization: false,
+            discoversApps: false,
+            initialSession: LastfmSession(username: "tester", sessionKey: "session")
+        )
+        state.setupSelectiveApps(["com.test.Allowed"])
+
+        state.monitor.onUpdate?(track(title: "Blocked", bundleId: "com.test.Blocked"))
+        await settleMainActor()
+        XCTAssertTrue(client.nowPlaying.isEmpty)
+
+        state.monitor.onUpdate?(track(title: "Allowed", bundleId: "com.test.Allowed"))
+        await waitUntil { client.nowPlaying.count == 1 }
+        XCTAssertEqual(client.nowPlaying.first?.title, "Allowed")
+    }
+
     // MARK: - onUpdate wiring
 
     func testOnUpdateRegistersAppInKnownApps() async {

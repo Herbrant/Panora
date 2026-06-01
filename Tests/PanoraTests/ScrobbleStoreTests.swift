@@ -40,6 +40,19 @@ final class ScrobbleStoreTests: XCTestCase {
         XCTAssertEqual(pending.status, .sent)
     }
 
+    func testRepeatedFailuresIncrementAttemptsAndReplaceLastError() async throws {
+        let store = try makeStore()
+        let pending = entry(title: "Pending", timestamp: 10, status: .pending)
+        store.insert(pending)
+
+        store.markFailed(pending, error: "offline")
+        store.markFailed(pending, error: "server error")
+
+        XCTAssertEqual(pending.status, .failed)
+        XCTAssertEqual(pending.attempts, 2)
+        XCTAssertEqual(pending.lastError, "server error")
+    }
+
     private func makeStore() throws -> ScrobbleStore {
         let schema = Schema([ScrobbleEntry.self])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
