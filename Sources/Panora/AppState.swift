@@ -48,6 +48,7 @@ final class AppState {
         defaults: UserDefaults = .standard,
         startsMonitor: Bool = true,
         opensAuthorization: Bool = true,
+        discoversApps: Bool = true,
         initialSession: LastfmSession? = nil,
         sourceSetupCompleted: Bool? = nil
     ) {
@@ -67,7 +68,7 @@ final class AppState {
         sessionRef = { [weak self] in self?.session }
 
         loadPreferences()
-        discoverInstalledMusicApps()
+        if discoversApps { discoverInstalledMusicApps() }
         if let sourceSetupCompleted {
             hasCompletedSourceSetup = sourceSetupCompleted
         }

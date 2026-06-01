@@ -236,7 +236,8 @@ final class AppStateTests: XCTestCase {
     func testOnUpdateSkipsNilTrack() {
         let state = AppState(
             context: makeContext(), sessionStore: FakeSessionStore(),
-            defaults: makeDefaults(), startsMonitor: false, opensAuthorization: false
+            defaults: makeDefaults(), startsMonitor: false, opensAuthorization: false,
+            discoversApps: false
         )
         state.monitor.onUpdate?(nil)
         XCTAssertTrue(state.knownApps.isEmpty)
@@ -245,9 +246,11 @@ final class AppStateTests: XCTestCase {
     func testOnUpdateDoesNotDuplicateKnownApps() async {
         let state = AppState(
             context: makeContext(), sessionStore: FakeSessionStore(),
-            defaults: makeDefaults(), startsMonitor: false, opensAuthorization: false
+            defaults: makeDefaults(), startsMonitor: false, opensAuthorization: false,
+            discoversApps: false
         )
         let testTrack = track(bundleId: "com.test.Same")
+        XCTAssertTrue(state.knownApps.isEmpty)
         state.monitor.onUpdate?(testTrack)
         state.monitor.onUpdate?(testTrack)
         await settleMainActor()
