@@ -16,7 +16,12 @@ brew install --cask herbrant/panora/panora
 
 Download the latest `Panora-x.x.x.dmg` from the
 [Releases page](https://github.com/Herbrant/Panora/releases), open it, and
-drag **Panora.app** into your Applications folder.
+drag **Panora.app** into your Applications folder. Then remove the quarantine
+attribute so macOS allows the app to run:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Panora.app
+```
 
 > **Note:** Panora uses a private macOS API and cannot be distributed on the
 > Mac App Store. The `.app` is signed with a Developer ID and notarized by
