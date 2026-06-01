@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: macos-15
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Inject Last.fm secrets
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
+        run: |
+          printf "LASTFM_API_KEY = %s\nLASTFM_API_SECRET = %s\n" \
+            "$LASTFM_API_KEY" "$LASTFM_API_SECRET" > Config.xcconfig
+          ./Scripts/generate-secrets.sh
+
+      - name: Patch Info.plist version
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" \
+            Sources/Panora/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" \
+            Sources/Panora/Info.plist
+
+      - name: Build release
+        run: swift build -c release
+
+      - name: Bundle .app
+        run: ./Scripts/build-release.sh
+
+      - name: Create DMG
+        run: ./Scripts/create-dmg.sh "$VERSION"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Panora $GITHUB_REF_NAME" \
+            --generate-notes \
+            "Panora-${VERSION}.dmg"
+
+      - name: Update Homebrew tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          SHA=$(shasum -a 256 "Panora-${VERSION}.dmg" | awk '{print $1}')
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/Herbrant/homebrew-panora.git" tap
+          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" tap/Casks/panora.rb
+          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA}\"/" tap/Casks/panora.rb
+          cd tap
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add Casks/panora.rb
+          git commit -m "chore: update panora to ${VERSION}"
+          git push
