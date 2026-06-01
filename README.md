@@ -4,6 +4,26 @@
 Native macOS (SwiftUI) scrobbler that detects playing music and submits it to **Last.fm**.
 Menu bar app + window, with history, statistics, and an offline retry queue.
 
+## Installation
+
+### Homebrew (recommended)
+
+```sh
+brew install --cask herbrant/panora/panora
+```
+
+### Manual download
+
+Download the latest `Panora-x.x.x.dmg` from the
+[Releases page](https://github.com/Herbrant/Panora/releases), open it, and
+drag **Panora.app** into your Applications folder.
+
+> **Note:** Panora uses a private macOS API and cannot be distributed on the
+> Mac App Store. The `.app` is signed with a Developer ID and notarized by
+> Apple, so Gatekeeper will accept it without disabling SIP.
+
+---
+
 ## How detection works
 
 Since macOS 15.4, Apple has restricted the private `MediaRemote` API to Apple processes only.
@@ -18,8 +38,9 @@ distributed on the Mac App Store**. Distribution is via a signed and notarized `
 ## Requirements
 
 - macOS 14+
-- Xcode 26+ (to run the GUI and produce the `.app` bundle)
-- A Last.fm API account
+- A Last.fm account
+
+**Developers only:** Xcode 26+ to build from source.
 
 ## 1. Last.fm API keys
 
@@ -110,7 +131,7 @@ Sources/Panora/
 ## Out of scope (v1)
 
 Metadata editing/blocking, other services (ListenBrainz, Libre.fm, CSV/JSONL),
-Discord Rich Presence, notarization/DMG.
+Discord Rich Presence.
 
 ## Contributing
 
