@@ -115,6 +115,12 @@ Discord Rich Presence, notarization/DMG.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test, and pull-request guidance.
 
+## Acknowledgements
+
+Panora was inspired by [pano-scrobbler](https://github.com/kawaiiDango/pano-scrobbler),
+an excellent Android scrobbler. Several UX ideas and scrobble-rule details were informed
+by studying that project.
+
 ## License
 
 Copyright © 2026 Davide Carnemolla.
