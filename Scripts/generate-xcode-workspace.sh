@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generates .swiftpm/xcode/package.xcworkspace and shared scheme
+# Generates .swiftpm/xcode/package.xcworkspace, shared scheme, and test plan.
 # Needed by CI so xcodebuild can resolve the SwiftPM package and run UI tests.
 # Xcode creates these files automatically when opening Package.swift locally.
 
@@ -23,7 +23,9 @@ cat > "$WORKSPACE_DIR/contents.xcworkspacedata" <<- EOF
 </Workspace>
 EOF
 
-cat > "$SCHEME_DIR/Panora.xcscheme" <<- 'EOF'
+PANORA_APP_PATH="${SRCROOT}/.build/debug/Panora.app"
+
+cat > "$SCHEME_DIR/Panora.xcscheme" <<- EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "2650"
@@ -53,33 +55,24 @@ cat > "$SCHEME_DIR/Panora.xcscheme" <<- 'EOF'
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "YES"
-      shouldAutocreateTestPlan = "YES">
-      <Testables>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "PanoraUITests"
-               BuildableName = "PanoraUITests"
-               BlueprintName = "PanoraUITests"
-               ReferencedContainer = "container:">
-            </BuildableReference>
-         </TestableReference>
-      </Testables>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "PANORA_RUN_UI_TESTS"
-            value = "1"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "PANORA_APP_PATH"
-            value = "$(SRCROOT)/.build/debug/Panora"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
-   </TestAction>
+       shouldUseLaunchSchemeArgsEnv = "YES">
+       <TestPlanReference
+          reference = "container:PanoraUITests.xctestplan"
+          default = "YES">
+       </TestPlanReference>
+       <Testables>
+          <TestableReference
+             skipped = "NO">
+             <BuildableReference
+                BuildableIdentifier = "primary"
+                BlueprintIdentifier = "PanoraUITests"
+                BuildableName = "PanoraUITests"
+                BlueprintName = "PanoraUITests"
+                ReferencedContainer = "container:">
+             </BuildableReference>
+          </TestableReference>
+       </Testables>
+    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
@@ -89,8 +82,7 @@ cat > "$SCHEME_DIR/Panora.xcscheme" <<- 'EOF'
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES"
-      queueDebuggingEnableBacktraceRecording = "Yes">
+      allowLocationSimulation = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
@@ -107,13 +99,8 @@ cat > "$SCHEME_DIR/Panora.xcscheme" <<- 'EOF'
             value = "1"
             isEnabled = "YES">
          </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "PANORA_APP_PATH"
-            value = "$(SRCROOT)/.build/debug/Panora"
-            isEnabled = "YES">
-         </EnvironmentVariable>
       </EnvironmentVariables>
-   </LaunchAction>
+    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
       shouldUseLaunchSchemeArgsEnv = "YES"
@@ -141,5 +128,38 @@ cat > "$SCHEME_DIR/Panora.xcscheme" <<- 'EOF'
 </Scheme>
 EOF
 
-echo "✅ Generated $WORKSPACE_DIR/contents.xcworkspacedata"
+cat > "$WORKSPACE_DIR/PanoraUITests.xctestplan" <<- PLANEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>testTargets</key>
+    <array>
+        <dict>
+            <key>targetIdentifier</key>
+            <string>PanoraUITests</string>
+            <key>targetName</key>
+            <string>PanoraUITests</string>
+            <key>testBundleType</key>
+            <string>XCTestBundleTypeUI</string>
+            <key>isEnabled</key>
+            <true/>
+            <key>environmentVariableEntries</key>
+            <array>
+                <dict>
+                    <key>key</key>
+                    <string>PANORA_RUN_UI_TESTS</string>
+                    <key>value</key>
+                    <string>1</string>
+                    <key>enabled</key>
+                    <true/>
+                </dict>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>
+PLANEOF
+
+echo "✅ Generated $WORKSPACE_DIR/PanoraUITests.xctestplan"
 echo "✅ Generated $SCHEME_DIR/Panora.xcscheme"

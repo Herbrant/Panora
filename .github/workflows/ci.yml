@@ -86,13 +86,16 @@ jobs:
       - name: Build
         run: swift build
 
+      - name: Create .app bundle
+        run: ./Scripts/bundle-app.sh
+
       - name: Generate Xcode workspace & scheme
         run: ./Scripts/generate-xcode-workspace.sh
 
       - name: Run UI tests
         env:
           PANORA_RUN_UI_TESTS: "1"
-          PANORA_APP_PATH: ${{ github.workspace }}/.build/debug/Panora
+          PANORA_APP_PATH: ${{ github.workspace }}/.build/debug/Panora.app
         run: |
           xcodebuild test \
             -workspace .swiftpm/xcode/package.xcworkspace \

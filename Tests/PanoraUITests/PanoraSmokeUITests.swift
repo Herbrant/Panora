@@ -6,11 +6,7 @@ final class PanoraSmokeUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
         guard ProcessInfo.processInfo.environment["PANORA_RUN_UI_TESTS"] == "1" else { return }
-        if let appPath = ProcessInfo.processInfo.environment["PANORA_APP_PATH"], !appPath.isEmpty {
-            app = XCUIApplication(url: URL(fileURLWithPath: appPath))
-        } else {
-            app = XCUIApplication()
-        }
+        app = XCUIApplication()
         app.launchEnvironment["PANORA_UI_TESTING"] = "1"
         app.launch()
     }
