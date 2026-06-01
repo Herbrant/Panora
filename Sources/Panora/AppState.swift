@@ -3,6 +3,7 @@
 import AppKit
 import Foundation
 import Observation
+import ServiceManagement
 import SwiftData
 
 /// Top-level coordinator wiring detection, scrobbling, persistence and auth.
@@ -35,6 +36,12 @@ final class AppState {
 
     var current: TrackPlayback? { filter(monitor.current) }
     var isConfigured: Bool { client.isConfigured }
+    var launchAtLogin: Bool { SMAppService.mainApp.status == .enabled }
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        if enabled { try? SMAppService.mainApp.register() }
+        else        { try? SMAppService.mainApp.unregister() }
+    }
 
     var isCurrentScrobbled: Bool {
         guard let id = monitor.current?.identity else { return false }

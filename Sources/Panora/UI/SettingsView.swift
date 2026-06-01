@@ -8,6 +8,13 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("General") {
+                Toggle("Launch at login", isOn: Binding(
+                    get: { appState.launchAtLogin },
+                    set: { appState.setLaunchAtLogin($0) }
+                ))
+            }
+
             Section("Account Last.fm") {
                 if let session = appState.session {
                     LabeledContent("Signed in as", value: session.username)

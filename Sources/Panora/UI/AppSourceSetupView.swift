@@ -7,10 +7,13 @@ struct AppSourceSetupView: View {
     @Environment(AppState.self) private var appState
     @State private var phase: Phase = .choice
     @State private var selectedApps: Set<String> = []
+    @State private var pendingSelective: Bool = false
+    @State private var pendingSelectedApps: Set<String> = []
 
     private enum Phase {
         case choice
         case selecting
+        case launchAtLogin
     }
 
     var body: some View {
@@ -19,6 +22,8 @@ struct AppSourceSetupView: View {
             choiceView
         case .selecting:
             selectingView
+        case .launchAtLogin:
+            launchAtLoginView
         }
     }
 
@@ -41,7 +46,8 @@ struct AppSourceSetupView: View {
 
             VStack(spacing: 12) {
                 Button("All apps") {
-                    appState.completeSourceSetup(selective: false)
+                    pendingSelective = false
+                    phase = .launchAtLogin
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -111,7 +117,9 @@ struct AppSourceSetupView: View {
             }
 
             Button("Confirm") {
-                appState.setupSelectiveApps(selectedApps)
+                pendingSelectedApps = selectedApps
+                pendingSelective = true
+                phase = .launchAtLogin
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
@@ -120,5 +128,51 @@ struct AppSourceSetupView: View {
         .padding(.horizontal, 40)
         .frame(width: 480, height: 460)
         .accessibilityIdentifier("panora.sourceSetup.selecting")
+    }
+
+    private var launchAtLoginView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "arrow.up.circle")
+                .font(.system(size: 56))
+                .foregroundStyle(Color.accentColor)
+                .panoraArrowCursor()
+
+            VStack(spacing: 8) {
+                Text("Launch Panora at login?")
+                    .font(.largeTitle.weight(.semibold))
+                Text("You can change this anytime from Settings.")
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: 12) {
+                Button("Enable") {
+                    finishSetup(launchAtLogin: true)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
+                Button("Not now") {
+                    finishSetup(launchAtLogin: false)
+                }
+                .controlSize(.large)
+            }
+
+            Spacer()
+        }
+        .padding(40)
+        .frame(width: 480, height: 380)
+        .accessibilityIdentifier("panora.sourceSetup.launchAtLogin")
+    }
+
+    private func finishSetup(launchAtLogin: Bool) {
+        appState.setLaunchAtLogin(launchAtLogin)
+        if pendingSelective {
+            appState.setupSelectiveApps(pendingSelectedApps)
+        } else {
+            appState.completeSourceSetup(selective: false)
+        }
     }
 }
