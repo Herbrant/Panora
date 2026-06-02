@@ -22,15 +22,21 @@ struct MenuBarView: View {
     @ViewBuilder
     private var nowPlaying: some View {
         if let track = appState.current {
-            HStack(spacing: 12) {
-                artwork(track)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(track.title).fontWeight(.semibold).lineLimit(1)
-                    Text(track.artist).foregroundStyle(.secondary).lineLimit(1)
-                    if let album = track.album, !album.isEmpty {
-                        Text(album).foregroundStyle(.tertiary).font(.caption).lineLimit(1)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    artwork(track)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(track.title).fontWeight(.semibold).lineLimit(1)
+                        Text(track.artist).foregroundStyle(.secondary).lineLimit(1)
+                        if let album = track.album, !album.isEmpty {
+                            Text(album).foregroundStyle(.tertiary).font(.caption).lineLimit(1)
+                        }
+                        statusLine(track)
                     }
-                    statusLine(track)
+                }
+
+                if let progress = appState.scrobbleProgress {
+                    ScrobbleProgressIndicator(progress: progress)
                 }
             }
         } else {
@@ -66,7 +72,10 @@ struct MenuBarView: View {
 
     @ViewBuilder
     private func statusLine(_ track: TrackPlayback) -> some View {
-        if appState.isCurrentScrobbled {
+        if appState.scrobblingSuspended {
+            Label("Scrobbling off", systemImage: "power.circle")
+                .font(.caption).foregroundStyle(.orange)
+        } else if appState.isCurrentScrobbled {
             Label("Scrobbled", systemImage: "checkmark.circle.fill")
                 .font(.caption).foregroundStyle(.green)
         } else if track.isPlaying {
@@ -80,6 +89,12 @@ struct MenuBarView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 6) {
+            Toggle("Scrobbling", isOn: Binding(
+                get: { !appState.scrobblingSuspended },
+                set: { appState.setScrobblingSuspended(!$0) }
+            ))
+            .toggleStyle(.switch)
+
             if let session = appState.session {
                 Label(session.username, systemImage: "person.crop.circle")
                     .font(.caption).foregroundStyle(.secondary)

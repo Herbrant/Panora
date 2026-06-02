@@ -20,7 +20,7 @@ struct HistoryView: View {
             } else {
                 List {
                     if let current = appState.current {
-                        CurrentScrobbleRow(track: current)
+                        CurrentScrobbleRow(track: current, progress: appState.scrobbleProgress)
                     }
 
                     ForEach(entries) { entry in
@@ -59,6 +59,7 @@ private struct ArtworkThumbnail: View {
 
 private struct CurrentScrobbleRow: View {
     let track: TrackPlayback
+    let progress: ScrobbleProgress?
     @State private var isAnimating = false
 
     var body: some View {
@@ -82,17 +83,21 @@ private struct CurrentScrobbleRow: View {
                 Text(track.artist).foregroundStyle(.secondary).font(.subheadline)
             }
             Spacer()
-            Text("Scrobbling now")
-                .foregroundStyle(.blue)
-                .font(.caption)
-                .fontWeight(.semibold)
-            Image(systemName: "waveform")
-                .foregroundStyle(.blue)
-                .symbolEffect(.variableColor.iterative.reversing, options: .repeating, value: isAnimating)
-                .scaleEffect(isAnimating ? 1.12 : 0.96)
-                .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isAnimating)
-                .help("Scrobbling now")
-                .accessibilityLabel("Scrobbling now")
+            if let progress {
+                ScrobbleProgressIndicator(progress: progress, showsBar: false)
+            } else {
+                Text("Now playing")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                Image(systemName: "waveform")
+                    .foregroundStyle(.blue)
+                    .symbolEffect(.variableColor.iterative.reversing, options: .repeating, value: isAnimating)
+                    .scaleEffect(isAnimating ? 1.12 : 0.96)
+                    .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isAnimating)
+                    .help("Now playing")
+                    .accessibilityLabel("Now playing")
+            }
         }
         .padding(.vertical, 4)
         .onAppear { isAnimating = true }

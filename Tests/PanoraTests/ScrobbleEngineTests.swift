@@ -13,6 +13,8 @@ final class ScrobbleEngineTests: XCTestCase {
         await waitUntil { store.inserted.count == 1 && client.nowPlaying.count == 1 && client.scrobbles.count == 1 }
 
         XCTAssertEqual(sleeper.delays, [40])
+        XCTAssertEqual(engine.progress?.thresholdSeconds, 50)
+        XCTAssertEqual(engine.progress?.status, .scrobbled)
         XCTAssertEqual(store.inserted.first?.timestamp, 990)
         XCTAssertEqual(store.inserted.first?.status, .sent)
         XCTAssertEqual(client.nowPlaying.first?.title, "Song")
@@ -29,6 +31,7 @@ final class ScrobbleEngineTests: XCTestCase {
         await waitUntil { store.inserted.count == 1 }
 
         XCTAssertEqual(sleeper.delays, [180])
+        XCTAssertEqual(engine.progress?.thresholdSeconds, 240)
     }
 
     func testShortTracksDoNotScrobble() async {
@@ -41,6 +44,7 @@ final class ScrobbleEngineTests: XCTestCase {
 
         XCTAssertTrue(sleeper.delays.isEmpty)
         XCTAssertTrue(store.inserted.isEmpty)
+        XCTAssertEqual(engine.progress?.status, .notEligible)
     }
 
     func testPauseCancelsPendingScrobbleAndResumeSchedulesAgain() async {
@@ -55,6 +59,7 @@ final class ScrobbleEngineTests: XCTestCase {
         sleeper.resumeAll()
         await settleMainActor()
         XCTAssertTrue(store.inserted.isEmpty)
+        XCTAssertEqual(engine.progress?.status, .pausedPlayback)
 
         engine.handle(track(duration: 100, elapsed: 25, isPlaying: true))
         await waitUntil { sleeper.delays.count == 2 }
@@ -77,6 +82,66 @@ final class ScrobbleEngineTests: XCTestCase {
         await waitUntil { store.inserted.count == 1 }
 
         XCTAssertEqual(store.inserted.map(\.title), ["Second"])
+    }
+
+    func testProgressCountsTowardScrobbleThreshold() {
+        let sleeper = RecordingSleeper(returnsImmediately: false)
+        let engine = makeEngine(sleeper: sleeper)
+
+        engine.handle(track(duration: 100, elapsed: 10, isPlaying: true))
+
+        XCTAssertEqual(engine.progress?.status, .waiting)
+        XCTAssertEqual(engine.progress?.remainingSeconds(at: Date(timeIntervalSince1970: 1_000)), 40)
+        XCTAssertEqual(engine.progress?.fraction(at: Date(timeIntervalSince1970: 1_020)), 0.6)
+    }
+
+    func testSuspensionBlocksNowPlayingAndScrobble() async {
+        let client = FakeLastfmClient()
+        let sleeper = RecordingSleeper(returnsImmediately: true)
+        let store = FakeScrobbleStore()
+        let engine = makeEngine(client: client, store: store, sleeper: sleeper)
+
+        engine.setScrobblingSuspended(true)
+        engine.handle(track(duration: 100, elapsed: 10, isPlaying: true))
+        await settleMainActor()
+
+        XCTAssertTrue(sleeper.delays.isEmpty)
+        XCTAssertTrue(client.nowPlaying.isEmpty)
+        XCTAssertTrue(client.scrobbles.isEmpty)
+        XCTAssertTrue(store.inserted.isEmpty)
+        XCTAssertEqual(engine.progress?.status, .suspended)
+    }
+
+    func testSuspensionCancelsPendingScrobble() async {
+        let sleeper = RecordingSleeper(returnsImmediately: false)
+        let store = FakeScrobbleStore()
+        let engine = makeEngine(store: store, sleeper: sleeper)
+
+        engine.handle(track(duration: 100, elapsed: 10, isPlaying: true))
+        await waitUntil { sleeper.delays.count == 1 }
+
+        engine.setScrobblingSuspended(true)
+        sleeper.resumeAll()
+        await settleMainActor()
+
+        XCTAssertTrue(store.inserted.isEmpty)
+        XCTAssertEqual(engine.progress?.status, .suspended)
+    }
+
+    func testReactivationReschedulesCurrentTrack() async {
+        let client = FakeLastfmClient()
+        let sleeper = RecordingSleeper(returnsImmediately: false)
+        let store = FakeScrobbleStore()
+        let engine = makeEngine(client: client, store: store, sleeper: sleeper)
+
+        engine.setScrobblingSuspended(true)
+        engine.handle(track(duration: 100, elapsed: 20, isPlaying: true))
+        engine.setScrobblingSuspended(false)
+        engine.handle(track(duration: 100, elapsed: 20, isPlaying: true))
+
+        await waitUntil { sleeper.delays.count == 1 && client.nowPlaying.count == 1 }
+        XCTAssertEqual(sleeper.delays, [30])
+        XCTAssertEqual(engine.progress?.status, .waiting)
     }
 
     func testFlushQueueMarksFailuresAndSkipsWithoutSession() async {

@@ -9,6 +9,17 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("General") {
+                Toggle("Enable scrobbling", isOn: Binding(
+                    get: { !appState.scrobblingSuspended },
+                    set: { appState.setScrobblingSuspended(!$0) }
+                ))
+
+                if appState.scrobblingSuspended {
+                    Text("Panora will not send now-playing updates or scrobbles to Last.fm until this is enabled again.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Toggle("Launch at login", isOn: Binding(
                     get: { appState.launchAtLogin },
                     set: { appState.setLaunchAtLogin($0) }

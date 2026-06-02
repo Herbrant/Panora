@@ -27,14 +27,17 @@ final class AppState {
     private let opensAuthorization: Bool
     private var pendingToken: String?
     private var started = false
+    private var lastTrack: TrackPlayback?
 
     // Source filtering
     private(set) var selectiveScrobblingEnabled: Bool = false
     private(set) var hasCompletedSourceSetup: Bool = false
     private(set) var allowedApps: Set<String> = []
     private(set) var knownApps: [String: String] = [:]
+    private(set) var scrobblingSuspended: Bool = false
+    private(set) var current: TrackPlayback?
 
-    var current: TrackPlayback? { filter(monitor.current) }
+    var scrobbleProgress: ScrobbleProgress? { current == nil ? nil : engine.progress }
     var isConfigured: Bool { client.isConfigured }
     var launchAtLogin: Bool { SMAppService.mainApp.status == .enabled }
 
@@ -75,6 +78,7 @@ final class AppState {
         sessionRef = { [weak self] in self?.session }
 
         loadPreferences()
+        engine.setScrobblingSuspended(scrobblingSuspended)
         if discoversApps { discoverInstalledMusicApps() }
         if let sourceSetupCompleted {
             hasCompletedSourceSetup = sourceSetupCompleted
@@ -83,7 +87,10 @@ final class AppState {
         monitor.onUpdate = { [weak self, weak engine] track in
             guard let self else { engine?.handle(track); return }
             if let track { self.registerApp(track) }
-            engine?.handle(self.filter(track))
+            self.lastTrack = track
+            let filteredTrack = self.filter(track)
+            self.current = filteredTrack
+            engine?.handle(filteredTrack)
         }
     }
 
@@ -111,6 +118,16 @@ final class AppState {
         reapplyFilter()
     }
 
+    func setScrobblingSuspended(_ suspended: Bool) {
+        scrobblingSuspended = suspended
+        engine.setScrobblingSuspended(suspended)
+        savePreferences()
+        reapplyFilter()
+        if !suspended {
+            Task { await engine.flushQueue() }
+        }
+    }
+
     func toggleApp(_ bundleId: String, enabled: Bool) {
         if enabled {
             allowedApps.insert(bundleId)
@@ -122,7 +139,9 @@ final class AppState {
     }
 
     private func reapplyFilter() {
-        engine.handle(filter(monitor.current))
+        let filteredTrack = filter(lastTrack ?? monitor.current)
+        current = filteredTrack
+        engine.handle(filteredTrack)
     }
 
     /// Scans for installed apps from ``knownMusicApps`` and prunes stale entries,
@@ -172,11 +191,13 @@ final class AppState {
         static let sourceSetupDone = "scrobbler.sourceSetupDone"
         static let allowedApps = "scrobbler.allowedApps"
         static let knownApps = "scrobbler.knownApps"
+        static let suspended = "scrobbler.suspended"
     }
 
     private func loadPreferences() {
         selectiveScrobblingEnabled = defaults.bool(forKey: Keys.selectiveEnabled)
         hasCompletedSourceSetup = defaults.bool(forKey: Keys.sourceSetupDone)
+        scrobblingSuspended = defaults.bool(forKey: Keys.suspended)
         if let data = defaults.data(forKey: Keys.allowedApps),
            let arr = try? JSONDecoder().decode([String].self, from: data) {
             allowedApps = Set(arr)
@@ -190,6 +211,7 @@ final class AppState {
     private func savePreferences() {
         defaults.set(selectiveScrobblingEnabled, forKey: Keys.selectiveEnabled)
         defaults.set(hasCompletedSourceSetup, forKey: Keys.sourceSetupDone)
+        defaults.set(scrobblingSuspended, forKey: Keys.suspended)
         if let data = try? JSONEncoder().encode(Array(allowedApps)) {
             defaults.set(data, forKey: Keys.allowedApps)
         }

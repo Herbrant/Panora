@@ -261,6 +261,45 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(client.nowPlaying.first?.title, "Allowed")
     }
 
+    func testSuspendedScrobblingRegistersAppButDoesNotSendNowPlaying() async {
+        let client = FakeLastfmClient()
+        let state = AppState(
+            context: makeContext(), client: client, sessionStore: FakeSessionStore(),
+            defaults: makeDefaults(), startsMonitor: false, opensAuthorization: false,
+            discoversApps: false,
+            initialSession: LastfmSession(username: "tester", sessionKey: "session")
+        )
+        state.setScrobblingSuspended(true)
+
+        state.monitor.onUpdate?(track(bundleId: "com.test.Suspended"))
+        await settleMainActor()
+
+        XCTAssertEqual(state.knownApps["com.test.Suspended"], "Test Player")
+        XCTAssertEqual(state.current?.title, "Song")
+        XCTAssertEqual(state.scrobbleProgress?.status, .suspended)
+        XCTAssertTrue(client.nowPlaying.isEmpty)
+    }
+
+    func testReenablingScrobblingReappliesCurrentTrack() async {
+        let client = FakeLastfmClient()
+        let state = AppState(
+            context: makeContext(), client: client, sessionStore: FakeSessionStore(),
+            defaults: makeDefaults(), startsMonitor: false, opensAuthorization: false,
+            discoversApps: false,
+            initialSession: LastfmSession(username: "tester", sessionKey: "session")
+        )
+        state.setScrobblingSuspended(true)
+        state.monitor.onUpdate?(track(bundleId: "com.test.Player"))
+        await settleMainActor()
+        XCTAssertTrue(client.nowPlaying.isEmpty)
+
+        state.setScrobblingSuspended(false)
+        await waitUntil { client.nowPlaying.count == 1 }
+
+        XCTAssertEqual(client.nowPlaying.first?.title, "Song")
+        XCTAssertEqual(state.scrobbleProgress?.status, .waiting)
+    }
+
     // MARK: - onUpdate wiring
 
     func testOnUpdateRegistersAppInKnownApps() async {
@@ -331,6 +370,21 @@ final class AppStateTests: XCTestCase {
         )
         XCTAssertTrue(reloaded.hasCompletedSourceSetup)
         XCTAssertTrue(reloaded.selectiveScrobblingEnabled)
+    }
+
+    func testPreferencesPersistScrobblingSuspension() {
+        let defaults = makeDefaults()
+        let state = AppState(
+            context: makeContext(), sessionStore: FakeSessionStore(),
+            defaults: defaults, startsMonitor: false, opensAuthorization: false
+        )
+        state.setScrobblingSuspended(true)
+
+        let reloaded = AppState(
+            context: makeContext(), sessionStore: FakeSessionStore(),
+            defaults: defaults, startsMonitor: false, opensAuthorization: false
+        )
+        XCTAssertTrue(reloaded.scrobblingSuspended)
     }
 
     // MARK: - isConfigured
